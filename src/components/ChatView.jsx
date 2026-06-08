@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PowerInput from './PowerInput'; // Import the new engine
 
 export default function ChatView({ messages, setMessages }) {
   const [input, setInput] = useState('');
@@ -27,6 +28,7 @@ export default function ChatView({ messages, setMessages }) {
       initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.25 }}
       style={{ flex: 1, background: 'var(--glass-surface)', backdropFilter: 'blur(32px)', borderRadius: '24px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 16px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}
     >
+      {/* Messages Feed */}
       <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', flex: 1 }}>
         <AnimatePresence>
           {messages.map((msg) => (
@@ -48,11 +50,13 @@ export default function ChatView({ messages, setMessages }) {
         </AnimatePresence>
       </div>
 
+      {/* Power Input Area */}
       <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
         <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', padding: '8px 8px 8px 20px', borderRadius: '16px' }}>
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask DukeVanta to execute a task..."
-            style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '15px', fontWeight: 500, outline: 'none' }}
-          />
+          
+          {/* Injecting the PowerInput component */}
+          <PowerInput value={input} onChange={setInput} onSubmit={handleSend} />
+
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="submit"
             style={{ padding: '12px 24px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-purple))', color: 'white', fontWeight: 600, fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 16px rgba(124, 92, 250, 0.4)' }}>
             Send

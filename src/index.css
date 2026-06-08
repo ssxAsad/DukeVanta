@@ -69,3 +69,31 @@ select option {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(124, 92, 250, 0.3);
 }
+/* --- DUKEVANTA KINETIC FIRE ENGINE --- */
+@keyframes text-ignite {
+  0% {
+    color: transparent;
+    /* Intense white-hot core with towering orange/red heat distortion */
+    text-shadow: 0 2px 10px #FFFFFF, 0 -10px 20px #FFB600, 0 -25px 30px #FF3800;
+    transform: translateY(6px); /* Removed scale to fix cursor lag */
+    filter: blur(3px);
+  }
+  40% {
+    color: #FFB600;
+    text-shadow: 0 -2px 8px #FF7300, 0 -12px 15px #FF3800;
+    transform: translateY(-2px);
+    filter: blur(0px);
+  }
+  100% {
+    color: var(--text-primary);
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+.fire-letter {
+  display: inline-block;
+  animation: text-ignite 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, color, text-shadow, filter;
+}
