@@ -1,0 +1,71 @@
+:root {
+  /* Primary Accents */
+  --primary-accent: #7C5CFA;
+  --secondary-purple: #9B84FF;
+
+  /* Dark Glassmorphic Surfaces */
+  --glass-surface: rgba(20, 20, 25, 0.45);
+  --glass-surface-hover: rgba(255, 255, 255, 0.06);
+  --glass-surface-active: rgba(124, 92, 250, 0.15);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.12);
+
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+
+  /* Status Colors */
+  --success: #22C55E;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(circle at 15% 50%, rgba(26, 18, 48, 1), #08080A 40%),
+              radial-gradient(circle at 85% 30%, rgba(18, 25, 38, 1), #08080A 50%);
+  background-color: #08080A;
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Hardware-accelerated smooth transitions */
+.nav-button {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-button:hover {
+  background-color: var(--glass-surface-hover);
+  border-color: var(--glass-highlight);
+}
+
+.nav-button.active {
+  background-color: var(--glass-surface-active);
+  color: var(--primary-accent);
+  border-color: rgba(124, 92, 250, 0.3);
+}
+
+/* Custom styling for select dropdown options within dark theme */
+select option {
+  background-color: #121216;
+  color: var(--text-primary);
+  padding: 12px;
+}
+
+/* Custom scrollbar handling for a premium look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 92, 250, 0.3);
+}
