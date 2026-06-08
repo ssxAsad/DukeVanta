@@ -50,7 +50,7 @@ export default function ChatView({ messages, setMessages }) {
 
       <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
         <form onSubmit={handleSend} style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', padding: '8px 8px 8px 20px', borderRadius: '16px' }}>
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask Butler to execute a task..."
+          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask DukeVanta to execute a task..."
             style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '15px', fontWeight: 500, outline: 'none' }}
           />
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="submit"

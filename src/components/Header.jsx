@@ -11,7 +11,7 @@ export default function Header({ setIsSidebarOpen, activeView, isLocalMode }) {
         </motion.button>
         
         <h2 style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px', textShadow: '0 2px 10px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          Butler AI <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>/</span> 
+          DukeVanta <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>/</span> 
           <span style={{ color: 'var(--primary-accent)' }}>
             {activeView === 'chat' ? 'Console' : activeView === 'history' ? 'Archives' : 'Settings'}
           </span>

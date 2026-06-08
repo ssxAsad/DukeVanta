@@ -11,7 +11,7 @@ export default function SettingsView({ isLocalMode, setIsLocalMode, selectedApi,
       <div style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '40px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: 700, margin: '0 0 8px 0' }}>Engine Configuration</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '15px' }}>Determine how Butler processes intelligence. Local execution provides absolute privacy, while APIs offer larger parameter models.</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '15px' }}>Determine how DukeVanta processes intelligence. Local execution provides absolute privacy, while APIs offer larger parameter models.</p>
         </div>
 
         <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
