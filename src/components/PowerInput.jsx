@@ -2,23 +2,22 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const FLAME_COLORS = ['#FF3800', '#FF5300', '#FF7300', '#FF9600', '#FFB600', '#FFFFFF'];
-const MAX_PARTICLES = 70; // Slightly raised cap to handle typing + deleting combos
+const MAX_PARTICLES = 70; 
 
-export default function PowerInput({ value, onChange, onSubmit }) {
+export default function PowerInput({ value, onChange, onSubmit, onFocus, onBlur }) {
   const [particles, setParticles] = useState([]);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [shockwave, setShockwave] = useState(false);
   
   const measureRef = useRef(null);
   const inputRef = useRef(null);
-  
   const lastExplosionTime = useRef(0);
   const shockwaveTimeout = useRef(null);
 
   const handleInputChange = (e) => {
     const newValue = e.target.value;
     
-    // DETECT TYPING: If the text gets longer, spawn ignition sparks
+    // Spawn typing sparks if text is added
     if (newValue.length > value.length && inputRef.current && measureRef.current) {
       const cursorPosition = inputRef.current.selectionStart;
       measureRef.current.textContent = newValue.substring(0, cursorPosition);
@@ -31,7 +30,7 @@ export default function PowerInput({ value, onChange, onSubmit }) {
   };
 
   const handleKeyDown = (e) => {
-    // DETECT DELETION: Heavy explosion and shockwave
+    // Spawn heavy explosion on Backspace
     if (e.key === 'Backspace' && value.length > 0 && inputRef.current) {
       const now = Date.now();
       
@@ -58,13 +57,11 @@ export default function PowerInput({ value, onChange, onSubmit }) {
 
   const handleScroll = (e) => setScrollLeft(e.target.scrollLeft);
 
-  // IGNITION: Small upward sparks for typing a new letter
   const spawnIgnition = (xPosition) => {
     const charCenter = xPosition - 4; 
-    const particleCount = 4; // Low density for performance while fast-typing
+    const particleCount = 4; 
     
     const newParticles = Array.from({ length: particleCount }).map(() => {
-      // Force angles to point strictly upwards (between PI and 2PI)
       const angle = Math.PI + (Math.random() * Math.PI); 
       const velocity = Math.random() * 25 + 5; 
 
@@ -80,10 +77,9 @@ export default function PowerInput({ value, onChange, onSubmit }) {
       };
     });
 
-    commitParticles(newParticles, 300); // Shorter lifespan for typing sparks
+    commitParticles(newParticles, 300); 
   };
 
-  // EXPLOSION: Massive omnidirectional blast for deleting a letter
   const spawnExplosion = (xPosition) => {
     const charCenter = xPosition - 4; 
     const particleCount = particles.length > 30 ? 8 : 16; 
@@ -108,7 +104,6 @@ export default function PowerInput({ value, onChange, onSubmit }) {
     commitParticles(newParticles, 400);
   };
 
-  // Shared function to inject particles into the DOM safely
   const commitParticles = (newParticles, lifespan) => {
     setParticles(prev => {
       const updatedParticles = [...prev, ...newParticles];
@@ -126,29 +121,22 @@ export default function PowerInput({ value, onChange, onSubmit }) {
       transition={{ duration: 0.15, ease: "easeOut" }}
       style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}
     >
-      {/* 1. HIDDEN MEASUREMENT NODE (Strict font-sync prevents cursor desync) */}
+      {/* Hidden Measurement Node */}
       <span 
         ref={measureRef} 
-        style={{ 
-          position: 'absolute', opacity: 0, pointerEvents: 'none', whiteSpace: 'pre', 
-          fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal' 
-        }}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal' }}
       />
 
-      {/* 2. CUSTOM PLACEHOLDER */}
+      {/* Placeholder Text */}
       {!value && (
         <div style={{ position: 'absolute', left: 0, pointerEvents: 'none', color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 500 }}>
           Ask DukeVanta to execute a task...
         </div>
       )}
 
-      {/* 3. GHOST TEXT MASK (Fire Appearance Engine) */}
+      {/* Hardware-Accelerated Ghost Text (Fire Appearance) */}
       <div style={{ position: 'absolute', left: 0, right: 0, height: '100%', overflow: 'hidden', pointerEvents: 'none' }}>
-        <div style={{ 
-          position: 'absolute', left: 0, top: '50%', display: 'flex', alignItems: 'center', 
-          color: 'transparent', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal',
-          transform: `translate(-${scrollLeft}px, -50%)` 
-        }}>
+        <div style={{ position: 'absolute', left: 0, top: '50%', display: 'flex', alignItems: 'center', color: 'transparent', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal', transform: `translate(-${scrollLeft}px, -50%)` }}>
           {value.split('').map((char, i) => (
             <span key={`${i}-${char}`} className="fire-letter">
               {char === ' ' ? '\u00A0' : char}
@@ -157,7 +145,7 @@ export default function PowerInput({ value, onChange, onSubmit }) {
         </div>
       </div>
 
-      {/* 4. ACTUAL INPUT (Z-Index bumped to force cursor to top layer) */}
+      {/* Actual Input */}
       <input 
         ref={inputRef}
         type="text" 
@@ -165,17 +153,13 @@ export default function PowerInput({ value, onChange, onSubmit }) {
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onScroll={handleScroll}
+        onFocus={onFocus} 
+        onBlur={onBlur}   
         spellCheck="false"
-        style={{ 
-          flex: 1, border: 'none', background: 'transparent', 
-          color: 'transparent', caretColor: 'var(--text-primary)', 
-          fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal', 
-          outline: 'none', width: '100%',
-          position: 'relative', zIndex: 20 
-        }}
+        style={{ flex: 1, border: 'none', background: 'transparent', color: 'transparent', caretColor: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal', outline: 'none', width: '100%', position: 'relative', zIndex: 20 }}
       />
 
-      {/* 5. KINETIC SPARK CANVAS */}
+      {/* Kinetic Spark Canvas */}
       <div style={{ position: 'absolute', top: '50%', left: 0, width: '100%', height: 0, pointerEvents: 'none', zIndex: 100, overflow: 'visible' }}>
         <AnimatePresence>
           {particles.map((p) => (
@@ -185,12 +169,7 @@ export default function PowerInput({ value, onChange, onSubmit }) {
               animate={{ x: p.endX, y: p.endY, scaleX: [1, 1.5, 0], opacity: [1, 0.8, 0] }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 + Math.random() * 0.2, ease: "easeOut" }}
-              style={{ 
-                position: 'absolute', width: p.length, height: p.thickness, 
-                backgroundColor: p.color, borderRadius: '100px',
-                boxShadow: `0 0 8px ${p.color}, 0 0 16px ${p.color}`, 
-                transformOrigin: 'center center', mixBlendMode: 'screen' 
-              }}
+              style={{ position: 'absolute', width: p.length, height: p.thickness, backgroundColor: p.color, borderRadius: '100px', boxShadow: `0 0 8px ${p.color}, 0 0 16px ${p.color}`, transformOrigin: 'center center', mixBlendMode: 'screen' }}
             />
           ))}
         </AnimatePresence>

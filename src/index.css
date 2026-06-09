@@ -96,4 +96,26 @@ select option {
   display: inline-block;
   animation: text-ignite 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   will-change: transform, color, text-shadow, filter;
+  animation-fill-mode: both; /* ADD THIS: Hides letters before their staggered ignition */
+}
+/* --- DUKEVANTA LOOPING FIRE ENGINE (For Thinking State) --- */
+@keyframes text-ignite-loop {
+  0%, 100% {
+    color: var(--text-primary);
+    text-shadow: 0 0 0 transparent;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+  50% {
+    color: #FFB600;
+    text-shadow: 0 -2px 8px #FF7300, 0 -12px 15px #FF3800;
+    transform: translateY(-3px);
+    filter: blur(1px);
+  }
+}
+
+.fire-letter-loop {
+  display: inline-block;
+  animation: text-ignite-loop 2s infinite ease-in-out;
+  will-change: transform, color, text-shadow, filter;
 }
