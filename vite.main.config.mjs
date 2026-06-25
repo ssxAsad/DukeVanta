@@ -1,4 +1,10 @@
 import { defineConfig } from 'vite';
 
-// https://vitejs.dev/config
-export default defineConfig({});
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      // This tells Vite to skip bundling the C++ engine
+      external: ['node-llama-cpp'],
+    },
+  },
+});

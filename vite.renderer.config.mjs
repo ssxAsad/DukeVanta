@@ -1,4 +1,10 @@
 import { defineConfig } from 'vite';
 
-// https://vitejs.dev/config
-export default defineConfig({});
+export default defineConfig({
+  // If you have a plugins array (like plugins: [react()]), keep it here!
+  build: {
+    rollupOptions: {
+      external: ['node-llama-cpp'],
+    },
+  },
+});

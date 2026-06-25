@@ -1,23 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Added useRef and useEffect
 import { motion, AnimatePresence } from 'framer-motion';
 import PowerInput from './PowerInput';
-
-const FireText = ({ text }) => {
-  return (
-    <span style={{ display: 'inline-block', wordBreak: 'break-word' }}>
-      {text.split('').map((char, i) => (
-        <span key={`${i}-${char}`} className="fire-letter" style={{ animationDelay: `${i * 0.012}s`, display: 'inline-block' }}>
-          {char === ' ' ? '\u00A0' : char}
-        </span>
-      ))}
-    </span>
-  );
-};
 
 const ThinkingFireText = ({ text }) => {
   return (
     <span style={{ display: 'inline-block', wordBreak: 'break-word' }}>
-      {text.split('').map((char, i) => (
+      {Array.from(text).map((char, i) => (
         <span key={`${i}-${char}`} className="fire-letter-loop" style={{ animationDelay: `${i * 0.15}s`, display: 'inline-block' }}>
           {char === ' ' ? '\u00A0' : char}
         </span>
@@ -30,53 +18,77 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
   const [input, setInput] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  
+  // --- NEW: Auto-scroll anchor point ---
+  const messagesEndRef = useRef(null);
+
+  // Automatically pull the view to the bottom whenever messages change or isThinking toggles
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isThinking]);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isThinking) return;
     
+    if (!selectedModel) {
+      setMessages(prev => [...prev, { 
+        id: Date.now(), 
+        sender: 'agent', 
+        text: 'System alert: No local GGUF core model loaded. Please map your weights in Settings.' 
+      }]);
+      return;
+    }
+
+    const currentInput = input;
     const userMsgId = Date.now();
-    setMessages(prev => [...prev, { id: userMsgId, sender: 'user', text: input }]);
+    
+    setMessages(prev => [...prev, { id: userMsgId, sender: 'user', text: currentInput }]);
     setInput('');
     setIsThinking(true); 
 
-    // MOCK BACKEND DELAY
-    setTimeout(() => {
+    const agentMsgId = Date.now() + 1;
+
+    try {
+      window.dukeAPI.onChatStream((chunk) => {
+        setIsThinking(false);
+        setMessages(prev => {
+          const messageExists = prev.some(msg => msg.id === agentMsgId);
+          if (messageExists) {
+            return prev.map(msg => msg.id === agentMsgId ? { ...msg, text: msg.text + chunk } : msg);
+          } else {
+            return [...prev, { id: agentMsgId, sender: 'agent', text: chunk }];
+          }
+        });
+      });
+
+      await window.dukeAPI.startChat({
+        prompt: currentInput
+      });
+
+    } catch (error) {
       setIsThinking(false);
-
-      if (!selectedModel) {
-        setMessages(prev => [...prev, { 
-          id: Date.now() + 1,
-          sender: 'agent', 
-          text: 'No model loaded, please load a model to chat.' 
-        }]);
-      } else {
-        // --- UPDATED CONVERSATIONAL MOCK RESPONSE ---
-        let responseMessage = `I received your message: "${messages[messages.length - 1]?.text || input}".\n\nI am currently running a simulated response using the ${selectedModel.name} weights. Once the inference backend is connected, I will stream the actual generated tokens here.`;
-        
-        if (selectedVisionModel) {
-          responseMessage += `\n\n(Vision Cortex is active via ${selectedVisionModel.name})`;
+      setMessages(prev => {
+        const messageExists = prev.some(msg => msg.id === agentMsgId);
+        const errorText = `\n\n[Inference Error: Could not connect to local engine. Ensure IPC bridge is active.]`;
+        if (messageExists) {
+           return prev.map(msg => msg.id === agentMsgId ? { ...msg, text: msg.text + errorText } : msg);
+        } else {
+           return [...prev, { id: agentMsgId, sender: 'agent', text: errorText }];
         }
-
-        setMessages(prev => [...prev, { 
-          id: Date.now() + 1,
-          sender: 'agent', 
-          text: responseMessage
-        }]);
-      }
-    }, 1200);
+      });
+    }
   };
 
   const agentBubbleStyle = {
-    borderRadius: '4px 24px 24px 24px', 
-    background: 'linear-gradient(135deg, rgba(16, 184, 255, 0.15), rgba(0, 80, 255, 0.05))',
+    borderRadius: '24px 24px 24px 4px', 
+    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
-    borderTop: '1px solid rgba(255, 255, 255, 0.4)',
-    borderLeft: '1px solid rgba(255, 255, 255, 0.3)',
-    borderRight: '1px solid rgba(0, 0, 0, 0.2)',
-    borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), inset 0 2px 8px rgba(255, 255, 255, 0.25)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1), inset 0 2px 8px rgba(255, 255, 255, 0.05)',
   };
 
   return (
@@ -89,7 +101,6 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
         <AnimatePresence>
           {messages.map((msg) => {
             const isUser = msg.sender === 'user';
-            
             return (
               <motion.div 
                 key={msg.id} 
@@ -98,12 +109,13 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
               >
                 <div style={{
                   maxWidth: '75%', padding: '16px 20px', fontSize: '15px', lineHeight: '1.6', fontWeight: 500, color: 'white', position: 'relative',
+                  whiteSpace: 'pre-wrap', 
                   ...(isUser ? {
                     borderRadius: '24px 24px 4px 24px', background: 'linear-gradient(135deg, var(--primary-accent), #5A35E6)',
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(255,255,255,0.2)', border: 'none',
                   } : agentBubbleStyle)
                 }}>
-                  <FireText text={msg.text} />
+                  {msg.text}
                 </div>
               </motion.div>
             );
@@ -116,12 +128,15 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
               transition={{ type: 'spring', stiffness: 250, damping: 25 }}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
             >
-              <div style={{ maxWidth: '75%', padding: '16px 20px', fontSize: '15px', lineHeight: '1.6', fontWeight: 600, color: 'white', position: 'relative', ...agentBubbleStyle }}>
-                <ThinkingFireText text="Processing..." />
+              <div style={{ maxWidth: '75%', padding: '16px 20px', fontSize: '15px', lineHeight: '1.6', fontWeight: 600, color: 'var(--primary-accent)', position: 'relative', ...agentBubbleStyle }}>
+                <ThinkingFireText text="Processing weights..." />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+        
+        {/* --- NEW: The invisible anchor div that we scroll to --- */}
+        <div ref={messagesEndRef} />
       </div>
 
       <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
