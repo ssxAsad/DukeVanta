@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'; // Added useRef and useEffect
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PowerInput from './PowerInput';
 
@@ -19,10 +19,8 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   
-  // --- NEW: Auto-scroll anchor point ---
   const messagesEndRef = useRef(null);
 
-  // Automatically pull the view to the bottom whenever messages change or isThinking toggles
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -50,18 +48,32 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
     setIsThinking(true); 
 
     const agentMsgId = Date.now() + 1;
+    
+    // --- NEW: Stream Gatekeeper ---
+    // This closure variable ensures we ignore the model until it outputs a real letter
+    let hasStartedGenerating = false; 
 
     try {
       window.dukeAPI.onChatStream((chunk) => {
-        setIsThinking(false);
-        setMessages(prev => {
-          const messageExists = prev.some(msg => msg.id === agentMsgId);
-          if (messageExists) {
-            return prev.map(msg => msg.id === agentMsgId ? { ...msg, text: msg.text + chunk } : msg);
-          } else {
-            return [...prev, { id: agentMsgId, sender: 'agent', text: chunk }];
-          }
-        });
+        
+        if (!hasStartedGenerating) {
+          // 1. Strip away leading newlines and empty spaces
+          const trimmed = chunk.trimStart();
+          
+          // 2. If the chunk was just empty space, ignore it! Keep the processing bubble alive.
+          if (!trimmed) return; 
+          
+          // 3. We finally got a real letter! Turn off thinking and inject the first token.
+          hasStartedGenerating = true;
+          setIsThinking(false);
+          setMessages(prev => [...prev, { id: agentMsgId, sender: 'agent', text: trimmed }]);
+          
+        } else {
+          // 4. Normal streaming continues after the first real token
+          setMessages(prev => prev.map(msg => 
+            msg.id === agentMsgId ? { ...msg, text: msg.text + chunk } : msg
+          ));
+        }
       });
 
       await window.dukeAPI.startChat({
@@ -76,7 +88,7 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
         if (messageExists) {
            return prev.map(msg => msg.id === agentMsgId ? { ...msg, text: msg.text + errorText } : msg);
         } else {
-           return [...prev, { id: agentMsgId, sender: 'agent', text: errorText }];
+           return [...prev, { id: agentMsgId, sender: 'agent', text: errorText.trimStart() }];
         }
       });
     }
@@ -135,7 +147,6 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
           )}
         </AnimatePresence>
         
-        {/* --- NEW: The invisible anchor div that we scroll to --- */}
         <div ref={messagesEndRef} />
       </div>
 
