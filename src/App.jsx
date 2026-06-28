@@ -6,6 +6,7 @@ import Header from './components/Header';
 import ChatView from './components/ChatView';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
+import PersonalityView from './components/PersonalityView';
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -16,29 +17,37 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
 
+  const [personalities, setPersonalities] = useState([]);
+  const [activePersonality, setActivePersonality] = useState(null);
+
   const [isLocalMode, setIsLocalMode] = useState(true);
   const [selectedApi, setSelectedApi] = useState('Groq');
   const [apiKey, setApiKey] = useState('');
-  
   const [selectedModel, setSelectedModel] = useState(null); 
   const [selectedVisionModel, setSelectedVisionModel] = useState(null); 
 
-  // --- NEW: Prevents saving loop and tracks message count ---
   const prevMsgLength = useRef(0);
 
-  // 1. Initial Load & VRAM Wipe
   useEffect(() => {
-    // Whenever VS Code triggers a reload (or the app starts), this instantly flushes the GPU
     window.dukeAPI.resetEngine();
 
     const loadDB = async () => {
       const dbHistory = await window.dukeAPI.getHistory();
       setChatHistory(dbHistory);
+      
+      const dbPersonalities = await window.dukeAPI.getPersonalities();
+      setPersonalities(dbPersonalities);
+      setActivePersonality(dbPersonalities[0]); 
     };
     loadDB();
   }, []);
 
-  // 2. Smart Auto-Save (Instant for new bubbles, debounced for token streams)
+  useEffect(() => {
+    if (activePersonality) {
+      window.dukeAPI.setEnginePersonality(activePersonality.systemPrompt);
+    }
+  }, [activePersonality]);
+
   useEffect(() => {
     if (messages.length === 0) {
       prevMsgLength.current = 0;
@@ -61,16 +70,13 @@ export default function App() {
         messages: messages,
         timestamp: Date.now()
       });
-
       setChatHistory(updatedHistory);
     };
 
-    // If a brand new bubble was added to the UI, save it INSTANTLY
     if (messages.length > prevMsgLength.current) {
       save();
       prevMsgLength.current = messages.length;
     } else {
-      // If the AI is just typing inside an existing bubble, debounce to protect the hard drive
       const timeoutId = setTimeout(save, 1000); 
       return () => clearTimeout(timeoutId);
     }
@@ -82,10 +88,8 @@ export default function App() {
       setMessages([]); 
       setChatTopic('New Interactive Session');
       setActiveView('chat');
-    } else if (view === 'history') {
-      setActiveView('history');
-    } else if (view === 'settings') {
-      setActiveView('settings');
+    } else {
+      setActiveView(view);
     }
     setIsSidebarOpen(false); 
   };
@@ -97,8 +101,32 @@ export default function App() {
     setActiveView('chat');
   };
 
+  const selectPersonality = (persona) => {
+    setActivePersonality(persona);
+    handleNavigation('new'); 
+  };
+
+  const deletePersonality = async (id) => {
+    const updatedPersonalities = await window.dukeAPI.deletePersonality(id);
+    setPersonalities(updatedPersonalities);
+    
+    if (activePersonality?.id === id) {
+      const defaultPersona = updatedPersonalities.find(p => p.id === 'p_default');
+      setActivePersonality(defaultPersona);
+    }
+  };
+
+  const deleteHistory = async (id) => {
+    const updatedHistory = await window.dukeAPI.deleteChat(id);
+    setChatHistory(updatedHistory);
+    
+    if (currentSessionId === id) {
+      handleNavigation('new');
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative', background: '#050505' }}>
       <Sidebar 
         isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} 
         activeView={activeView} chatTopic={chatTopic} handleNavigation={handleNavigation} 
@@ -118,9 +146,15 @@ export default function App() {
               />
             )}
             {activeView === 'history' && (
-              <HistoryView 
-                chatHistory={chatHistory} 
-                loadSession={loadSession} 
+              <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />
+            )}
+            {activeView === 'personalities' && (
+              <PersonalityView 
+                personalities={personalities} 
+                setPersonalities={setPersonalities}
+                activePersonality={activePersonality}
+                selectPersonality={selectPersonality}
+                deletePersonality={deletePersonality} 
               />
             )}
             {activeView === 'chat' && (

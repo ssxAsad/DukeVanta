@@ -14,7 +14,7 @@ const createWindow = () => {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#08080A', 
+    backgroundColor: '#050505', 
     show: false, 
     autoHideMenuBar: true, 
     webPreferences: {
@@ -37,9 +37,18 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   
-  // --- LOCAL DATABASE LOGIC ---
   const userDataPath = app.getPath('userData'); 
   const historyFilePath = path.join(userDataPath, 'DukeVanta_History.json');
+  const personalitiesFilePath = path.join(userDataPath, 'DukeVanta_Personalities.json');
+  
+  const defaultPersonalities = [
+    { 
+      id: 'p_default', 
+      name: 'DukeVanta Core', 
+      description: 'The standard, hyper-intelligent, and analytical default persona.', 
+      systemPrompt: 'You are DukeVanta, a highly capable, brilliant, and professional AI assistant. You provide exceptionally accurate and well-formatted answers.' 
+    }
+  ];
 
   const readHistory = async () => {
     try {
@@ -47,6 +56,16 @@ app.whenReady().then(() => {
       return JSON.parse(data);
     } catch (err) {
       return []; 
+    }
+  };
+
+  const readPersonalities = async () => {
+    try {
+      const data = await fs.readFile(personalitiesFilePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (err) {
+      await fs.writeFile(personalitiesFilePath, JSON.stringify(defaultPersonalities, null, 2));
+      return defaultPersonalities;
     }
   };
 
@@ -75,7 +94,51 @@ app.whenReady().then(() => {
     return history;
   });
 
-  // --- NATIVE DESKTOP FILE PICKER ---
+  ipcMain.handle('get-personalities', async () => {
+    return await readPersonalities();
+  });
+
+  ipcMain.handle('import-personality', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'JSON Identity Cards', extensions: ['json'] }]
+    });
+    
+    if (canceled) return null;
+    
+    try {
+      const rawData = await fs.readFile(filePaths[0], 'utf-8');
+      const parsed = JSON.parse(rawData);
+      
+      if (!parsed.name || !parsed.systemPrompt || !parsed.description) {
+        throw new Error("Invalid Card Format. Requires 'name', 'description', and 'systemPrompt'.");
+      }
+      
+      parsed.id = 'p_' + Date.now();
+      const per = await readPersonalities();
+      per.push(parsed);
+      
+      await fs.writeFile(personalitiesFilePath, JSON.stringify(per, null, 2));
+      return per; 
+    } catch (err) {
+      return { error: err.message };
+    }
+  });
+
+  // --- NEW: DELETE PERSONALITY HANDLER ---
+  ipcMain.handle('delete-personality', async (event, id) => {
+    if (id === 'p_default') return; // Core system safeguard
+    let per = await readPersonalities();
+    per = per.filter(p => p.id !== id);
+    await fs.writeFile(personalitiesFilePath, JSON.stringify(per, null, 2));
+    return per;
+  });
+
+  ipcMain.handle('set-engine-personality', async (event, sysPrompt) => {
+    await engine.setPersonality(sysPrompt);
+    return true;
+  });
+
   ipcMain.handle('open-file-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -85,7 +148,6 @@ app.whenReady().then(() => {
     return filePaths[0]; 
   });
 
-  // --- PRELOAD ENGINE FROM SETTINGS ---
   ipcMain.handle('load-model', async (event, data) => {
     try {
       await engine.load(data.modelPath, data.visionPath || null);
@@ -96,7 +158,6 @@ app.whenReady().then(() => {
     }
   });
 
-  // --- IPC BRIDGE: CHAT GENERATION ---
   ipcMain.handle('start-chat', async (event, data) => {
     try {
       await engine.generateResponse(data.prompt, (chunk) => {
@@ -112,7 +173,6 @@ app.whenReady().then(() => {
     }
   });
 
-  // --- NEW: VRAM KILL SWITCH ---
   ipcMain.handle('reset-engine', async () => {
     await engine.unload();
     return true;
@@ -125,8 +185,6 @@ app.whenReady().then(() => {
   });
 });
 
-
-// --- VRAM GARBAGE COLLECTION HOOKS ---
 app.on('window-all-closed', async () => {
   await engine.unload();
   if (process.platform !== 'darwin') app.quit();
