@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function HistoryView({ chatHistory, setChatTopic, setActiveView }) {
+export default function HistoryView({ chatHistory, loadSession }) {
   return (
     <motion.div key="history" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.25 }}
       style={{ flex: 1, background: 'var(--glass-surface)', backdropFilter: 'blur(32px)', borderRadius: '24px', border: '1px solid var(--glass-border)', padding: '40px', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 40px rgba(0,0,0,0.5)', overflowY: 'auto' }}
@@ -13,14 +13,17 @@ export default function HistoryView({ chatHistory, setChatTopic, setActiveView }
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+          {chatHistory.length === 0 && (
+             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.1)', borderRadius: '16px', border: '1px dashed var(--glass-border)' }}>
+               No chat history found. Start a new session!
+             </div>
+          )}
+
           {chatHistory.map((session) => (
             <motion.div 
               key={session.id} 
               whileHover={{ scale: 1.01, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'var(--glass-highlight)' }}
-              onClick={() => {
-                setChatTopic(session.topic);
-                setActiveView('chat');
-              }}
+              onClick={() => loadSession(session)} 
               style={{ padding: '20px', borderRadius: '16px', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--glass-border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.2s, background-color 0.2s' }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

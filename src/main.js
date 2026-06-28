@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import started from 'electron-squirrel-startup';
 import { engine } from './components/inferenceEngine.js';
 
@@ -36,6 +37,44 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   
+  // --- LOCAL DATABASE LOGIC ---
+  const userDataPath = app.getPath('userData'); 
+  const historyFilePath = path.join(userDataPath, 'DukeVanta_History.json');
+
+  const readHistory = async () => {
+    try {
+      const data = await fs.readFile(historyFilePath, 'utf-8');
+      return JSON.parse(data);
+    } catch (err) {
+      return []; 
+    }
+  };
+
+  ipcMain.handle('get-history', async () => {
+    return await readHistory();
+  });
+
+  ipcMain.handle('save-chat', async (event, chatData) => {
+    const history = await readHistory();
+    const existingIndex = history.findIndex(c => c.id === chatData.id);
+    
+    if (existingIndex >= 0) {
+      history[existingIndex] = chatData; 
+    } else {
+      history.unshift(chatData); 
+    }
+    
+    await fs.writeFile(historyFilePath, JSON.stringify(history, null, 2));
+    return history;
+  });
+
+  ipcMain.handle('delete-chat', async (event, id) => {
+    let history = await readHistory();
+    history = history.filter(c => c.id !== id);
+    await fs.writeFile(historyFilePath, JSON.stringify(history, null, 2));
+    return history;
+  });
+
   // --- NATIVE DESKTOP FILE PICKER ---
   ipcMain.handle('open-file-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -73,6 +112,12 @@ app.whenReady().then(() => {
     }
   });
 
+  // --- NEW: VRAM KILL SWITCH ---
+  ipcMain.handle('reset-engine', async () => {
+    await engine.unload();
+    return true;
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -82,7 +127,6 @@ app.whenReady().then(() => {
 
 
 // --- VRAM GARBAGE COLLECTION HOOKS ---
-
 app.on('window-all-closed', async () => {
   await engine.unload();
   if (process.platform !== 'darwin') app.quit();
@@ -92,7 +136,6 @@ app.on('will-quit', async () => {
   await engine.unload();
 });
 
-// Catch terminal restarts
 process.on('SIGINT', async () => {
   await engine.unload();
   process.exit(0);
