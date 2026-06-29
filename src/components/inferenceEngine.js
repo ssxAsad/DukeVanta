@@ -3,7 +3,7 @@ class InferenceEngine {
     this.llama = null;
     this.model = null;
     this.context = null;
-    this.currentSequence = null; // NEW: Track the specific memory slot
+    this.currentSequence = null; 
     this.session = null;
     this.currentModelPath = null;
     this.currentVisionPath = null;
@@ -46,7 +46,7 @@ class InferenceEngine {
         threads: 6              
       });
 
-      this.currentSequence = this.context.getSequence(); // Grab initial sequence
+      this.currentSequence = this.context.getSequence(); 
 
       this.session = new this.LlamaChatSessionClass({
         contextSequence: this.currentSequence,
@@ -71,8 +71,7 @@ class InferenceEngine {
         this.session = null;
       }
 
-      // Instead of killing the whole context, we just return the sequence slot 
-      // back to the pool and grab a fresh one instantly.
+      // Return the sequence slot back to the pool and grab a fresh one
       if (this.currentSequence) {
         this.currentSequence.dispose(); 
       }
@@ -93,7 +92,8 @@ class InferenceEngine {
 
     await this.session.prompt(promptText, {
       temperature: 0.7, 
-      repeatPenalty: { penalty: 1.15 },
+      repeatPenalty: 1.15, // CORRECTED: Flat number prevents the C++ NaN evaluation
+      maxTokens: 1024,     // ADDED: Hard cap prevents infinite echoing
       onTextChunk(chunk) { onTokenCallback(chunk); }
     });
   }

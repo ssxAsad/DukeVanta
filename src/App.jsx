@@ -20,7 +20,11 @@ export default function App() {
   const [personalities, setPersonalities] = useState([]);
   const [activePersonality, setActivePersonality] = useState(null);
 
+  // VRAM & NETWORK STATE ENGINES
   const [isLocalMode, setIsLocalMode] = useState(true);
+  const [isModelLoaded, setIsModelLoaded] = useState(false); 
+  const [isApiServerActive, setIsApiServerActive] = useState(false); // UPDATED: Default to false
+
   const [selectedApi, setSelectedApi] = useState('Groq');
   const [apiKey, setApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState(null); 
@@ -109,20 +113,15 @@ export default function App() {
   const deletePersonality = async (id) => {
     const updatedPersonalities = await window.dukeAPI.deletePersonality(id);
     setPersonalities(updatedPersonalities);
-    
     if (activePersonality?.id === id) {
-      const defaultPersona = updatedPersonalities.find(p => p.id === 'p_default');
-      setActivePersonality(defaultPersona);
+      setActivePersonality(updatedPersonalities.find(p => p.id === 'p_default'));
     }
   };
 
   const deleteHistory = async (id) => {
     const updatedHistory = await window.dukeAPI.deleteChat(id);
     setChatHistory(updatedHistory);
-    
-    if (currentSessionId === id) {
-      handleNavigation('new');
-    }
+    if (currentSessionId === id) handleNavigation('new');
   };
 
   return (
@@ -133,7 +132,14 @@ export default function App() {
       />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
-        <Header setIsSidebarOpen={setIsSidebarOpen} activeView={activeView} isLocalMode={isLocalMode} />
+        <Header 
+          setIsSidebarOpen={setIsSidebarOpen} 
+          activeView={activeView} 
+          isLocalMode={isLocalMode} 
+          isModelLoaded={isModelLoaded}
+          isApiServerActive={isApiServerActive}
+          setIsApiServerActive={setIsApiServerActive}
+        />
 
         <div style={{ flex: 1, padding: '90px 40px 40px 40px', overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <AnimatePresence mode="wait">
@@ -143,26 +149,12 @@ export default function App() {
                 selectedApi={selectedApi} setSelectedApi={setSelectedApi} apiKey={apiKey} setApiKey={setApiKey} 
                 selectedModel={selectedModel} setSelectedModel={setSelectedModel}
                 selectedVisionModel={selectedVisionModel} setSelectedVisionModel={setSelectedVisionModel}
+                setIsModelLoaded={setIsModelLoaded} 
               />
             )}
-            {activeView === 'history' && (
-              <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />
-            )}
-            {activeView === 'personalities' && (
-              <PersonalityView 
-                personalities={personalities} 
-                setPersonalities={setPersonalities}
-                activePersonality={activePersonality}
-                selectPersonality={selectPersonality}
-                deletePersonality={deletePersonality} 
-              />
-            )}
-            {activeView === 'chat' && (
-              <ChatView 
-                messages={messages} setMessages={setMessages} 
-                selectedModel={selectedModel} selectedVisionModel={selectedVisionModel} 
-              />
-            )}
+            {activeView === 'history' && <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />}
+            {activeView === 'personalities' && <PersonalityView personalities={personalities} setPersonalities={setPersonalities} activePersonality={activePersonality} selectPersonality={selectPersonality} deletePersonality={deletePersonality} />}
+            {activeView === 'chat' && <ChatView messages={messages} setMessages={setMessages} selectedModel={selectedModel} selectedVisionModel={selectedVisionModel} />}
           </AnimatePresence>
         </div>
       </main>
