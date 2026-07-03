@@ -3,7 +3,11 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 module.exports = {
   packagerConfig: {
-    asar: true,
+    // CRITICAL FIX: Unpack native C++ modules so the OS can execute them
+    asar: {
+      unpack: "*.{node,dll,exe,dylib,so,bin}"
+    },
+    setupIcon: './src/assets/dv.ico' 
   },
   rebuildConfig: {},
   makers: [
@@ -13,7 +17,7 @@ module.exports = {
         name: 'DukeVanta',
         authors: 'Asad Ullah Khan',
         exe: 'DukeVanta.exe',
-        // setupIcon: './assets/icon.ico' // Uncomment this later when you add a custom icon!
+        setupIcon: './src/assets/dv.ico'
       },
     },
     {
