@@ -1,8 +1,9 @@
 import { ipcMain, dialog } from 'electron';
 import fs from 'node:fs/promises';
 import { engine } from '../components/inferenceEngine.js';
+import { HuggingFaceService } from './HuggingFaceService.js'; 
 
-export function registerIpcHandlers(db, apiServer) {
+export function registerIpcHandlers(db, apiServer, hardwareScanner, downloader) {
   
   // --- DATABASE BRIDGES ---
   ipcMain.handle('get-history', () => db.getHistory());
@@ -45,6 +46,37 @@ export function registerIpcHandlers(db, apiServer) {
     return true;
   });
 
+  // --- HARDWARE & DOWNLOAD MANAGER BRIDGES ---
+  ipcMain.handle('scan-hardware', async () => {
+    return await hardwareScanner.scanHardware();
+  });
+
+  ipcMain.handle('download-model', async (event, data) => {
+    try {
+      return await downloader.downloadModel(data.url, data.fileName, event.sender);
+    } catch (error) {
+      console.error("[IPC Download Error]:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('cancel-download', (event, fileName) => {
+    return downloader.cancelDownload(fileName);
+  });
+
+  ipcMain.handle('get-local-models', async () => {
+    return await downloader.getModelList();
+  });
+
+  // --- HUGGING FACE API BRIDGES ---
+  ipcMain.handle('search-hf-models', async (event, query) => {
+    return await HuggingFaceService.searchModels(query);
+  });
+
+  ipcMain.handle('get-hf-model-files', async (event, modelId) => {
+    return await HuggingFaceService.getModelFiles(modelId);
+  });
+
   // --- ENGINE BRIDGES ---
   ipcMain.handle('set-engine-personality', async (event, sysPrompt) => {
     await engine.setPersonality(sysPrompt);
@@ -65,9 +97,12 @@ export function registerIpcHandlers(db, apiServer) {
     return filePaths[0]; 
   });
 
+  // UPDATED: Now passes the progress callback directly to the engine layer
   ipcMain.handle('load-model', async (event, data) => {
     try {
-      await engine.load(data.modelPath, data.visionPath || null);
+      await engine.load(data.modelPath, data.visionPath || null, (percent) => {
+        event.sender.send('load-progress', percent);
+      });
       return { success: true };
     } catch (error) {
       console.error("DukeVanta Engine Pre-load Error:", error);

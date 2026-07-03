@@ -23,7 +23,7 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
 
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, [messages, isThinking]);
 
@@ -48,37 +48,26 @@ export default function ChatView({ messages, setMessages, selectedModel, selecte
     setIsThinking(true); 
 
     const agentMsgId = Date.now() + 1;
-    
-    // --- NEW: Stream Gatekeeper ---
-    // This closure variable ensures we ignore the model until it outputs a real letter
     let hasStartedGenerating = false; 
 
     try {
       window.dukeAPI.onChatStream((chunk) => {
-        
         if (!hasStartedGenerating) {
-          // 1. Strip away leading newlines and empty spaces
           const trimmed = chunk.trimStart();
-          
-          // 2. If the chunk was just empty space, ignore it! Keep the processing bubble alive.
           if (!trimmed) return; 
           
-          // 3. We finally got a real letter! Turn off thinking and inject the first token.
           hasStartedGenerating = true;
           setIsThinking(false);
           setMessages(prev => [...prev, { id: agentMsgId, sender: 'agent', text: trimmed }]);
-          
         } else {
-          // 4. Normal streaming continues after the first real token
           setMessages(prev => prev.map(msg => 
             msg.id === agentMsgId ? { ...msg, text: msg.text + chunk } : msg
           ));
         }
       });
 
-      await window.dukeAPI.startChat({
-        prompt: currentInput
-      });
+      await window.dukeAPI.startChat({ prompt: currentInput });
+      setIsThinking(false); // Failsafe if stream finishes empty
 
     } catch (error) {
       setIsThinking(false);

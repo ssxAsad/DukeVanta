@@ -1,113 +1,102 @@
 class InferenceEngine {
   constructor() {
+    this.llamaModule = null;
     this.llama = null;
     this.model = null;
     this.context = null;
-    this.currentSequence = null; 
     this.session = null;
-    this.currentModelPath = null;
-    this.currentVisionPath = null;
-    this.LlamaChatSessionClass = null; 
-    
-    this.currentSystemPrompt = "You are a highly capable, intelligent, and helpful AI assistant.";
+    this.systemPrompt = "You are a helpful AI assistant.";
   }
 
-  async init() {
+  async initialize() {
+    if (!this.llamaModule) {
+      this.llamaModule = await import('node-llama-cpp');
+    }
     if (!this.llama) {
-      console.log("[DukeVanta Engine] 1/3: Initializing C++ Engine...");
-      const nodeLlamaCpp = await new Function('return import("node-llama-cpp")')();
-      this.LlamaChatSessionClass = nodeLlamaCpp.LlamaChatSession;
-      this.llama = await nodeLlamaCpp.getLlama();
-      console.log("[DukeVanta Engine] 2/3: Hardware Hook Established.");
+      // V3 API: Clean initialization without needing to hack the logger stream
+      this.llama = await this.llamaModule.getLlama();
     }
   }
 
-  async load(modelPath, visionPath = null) {
-    await this.init();
+  async load(modelPath, visionPath = null, progressCallback = null) {
+    await this.initialize();
+    await this.unload(); 
 
-    if (this.currentModelPath !== modelPath || this.currentVisionPath !== visionPath) {
-      console.log(`[DukeVanta Engine] 3/3: Pushing Weights to VRAM: ${modelPath}`);
-      
-      await this.unload();
-
-      this.model = await this.llama.loadModel({
+    try {
+      this.model = await this.llama.loadModel({ 
         modelPath: modelPath,
-        ignoreMemorySafetyChecks: true 
+        // V3 API: Native VRAM progress hook (returns a float between 0.0 and 1.0)
+        onLoadProgress: (progress) => {
+          if (progressCallback) {
+            const percent = Math.min(Math.round(progress * 100), 99);
+            progressCallback(percent);
+          }
+        }
       });
-
-      if (visionPath) {
-        console.log(`[DukeVanta Engine] Vision Module mapped at: ${visionPath}`);
-      }
-
-      console.log("[DukeVanta Engine] Model Loaded! Creating Context Memory...");
       
-      this.context = await this.model.createContext({
-        batchSize: 512,         
-        threads: 6              
-      });
-
-      this.currentSequence = this.context.getSequence(); 
-
-      this.session = new this.LlamaChatSessionClass({
-        contextSequence: this.currentSequence,
-        systemPrompt: this.currentSystemPrompt
-      });
-
-      this.currentModelPath = modelPath;
-      this.currentVisionPath = visionPath;
+      this.context = await this.model.createContext();
       
-      console.log(`[DukeVanta Engine] >>> SYSTEM FULLY ONLINE AND READY <<<`);
+      this.session = new this.llamaModule.LlamaChatSession({
+        contextSequence: this.context.getSequence(),
+        systemPrompt: this.systemPrompt
+      });
+
+      // Force UI to 100% when the promise resolves and VRAM is firmly locked
+      if (progressCallback) progressCallback(100);
+      return true;
+      
+    } catch (error) {
+      console.error("[Engine Load Error]:", error);
+      throw error;
     }
   }
 
-  async setPersonality(systemPrompt) {
-    this.currentSystemPrompt = systemPrompt;
+  async setPersonality(sysPrompt) {
+    this.systemPrompt = sysPrompt;
     
-    if (this.context && this.model) {
-      console.log("[DukeVanta Engine] Re-allocating Sequence for Identity swap...");
-      
-      if (this.session) {
-        this.session.dispose();
-        this.session = null;
-      }
-
-      // Return the sequence slot back to the pool and grab a fresh one
-      if (this.currentSequence) {
-        this.currentSequence.dispose(); 
+    if (this.model && this.llamaModule) {
+      // 1. Safely vaporize the old context to wipe VRAM memory of previous chats
+      if (this.context) {
+          await this.context.dispose();
       }
       
-      this.currentSequence = this.context.getSequence();
+      // 2. Create a brand new, empty context block
+      this.context = await this.model.createContext();
       
-      this.session = new this.LlamaChatSessionClass({
-        contextSequence: this.currentSequence,
-        systemPrompt: this.currentSystemPrompt
+      // 3. Bind the new session with the new identity rules
+      this.session = new this.llamaModule.LlamaChatSession({
+         contextSequence: this.context.getSequence(),
+         systemPrompt: this.systemPrompt
       });
-      
-      console.log("[DukeVanta Engine] Identity Matrix Updated instantly.");
     }
   }
 
-  async generateResponse(promptText, onTokenCallback) {
-    if (!this.session) throw new Error("Inference engine not initialized. No model loaded.");
+  async generateResponse(userMessage, chunkCallback) {
+    if (!this.session) throw new Error("No model loaded in VRAM.");
 
-    await this.session.prompt(promptText, {
-      temperature: 0.7, 
-      repeatPenalty: 1.15, // CORRECTED: Flat number prevents the C++ NaN evaluation
-      maxTokens: 1024,     // ADDED: Hard cap prevents infinite echoing
-      onTextChunk(chunk) { onTokenCallback(chunk); }
-    });
+    try {
+      const response = await this.session.prompt(userMessage, {
+        onToken: (chunk) => {
+          const text = this.model.detokenize(chunk);
+          if (chunkCallback) chunkCallback(text);
+        }
+      });
+      return response;
+    } catch (error) {
+      console.error("[Engine Inference Error]:", error);
+      throw error;
+    }
   }
 
   async unload() {
-    if (this.session || this.currentSequence || this.context || this.model) {
-      console.log("[DukeVanta Engine] Flushing VRAM and shutting down...");
-      if (this.session) { this.session.dispose(); this.session = null; }
-      if (this.currentSequence) { this.currentSequence.dispose(); this.currentSequence = null; }
-      if (this.context) { await this.context.dispose(); this.context = null; }
-      if (this.model) { await this.model.dispose(); this.model = null; }
-      this.currentModelPath = null;
-      this.currentVisionPath = null;
-      console.log("[DukeVanta Engine] VRAM successfully cleared.");
+    this.session = null;
+    if (this.context) {
+        await this.context.dispose();
+        this.context = null;
+    }
+    if (this.model) {
+        await this.model.dispose();
+        this.model = null;
     }
   }
 }

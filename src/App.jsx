@@ -20,10 +20,10 @@ export default function App() {
   const [personalities, setPersonalities] = useState([]);
   const [activePersonality, setActivePersonality] = useState(null);
 
-  // VRAM & NETWORK STATE ENGINES
   const [isLocalMode, setIsLocalMode] = useState(true);
   const [isModelLoaded, setIsModelLoaded] = useState(false); 
-  const [isApiServerActive, setIsApiServerActive] = useState(false); // UPDATED: Default to false
+  const [isApiServerActive, setIsApiServerActive] = useState(false); 
+  const [gpuData, setGpuData] = useState(null);
 
   const [selectedApi, setSelectedApi] = useState('Groq');
   const [apiKey, setApiKey] = useState('');
@@ -35,22 +35,32 @@ export default function App() {
   useEffect(() => {
     window.dukeAPI.resetEngine();
 
-    const loadDB = async () => {
+    const initializeApp = async () => {
       const dbHistory = await window.dukeAPI.getHistory();
-      setChatHistory(dbHistory);
+      setChatHistory(dbHistory || []);
       
       const dbPersonalities = await window.dukeAPI.getPersonalities();
-      setPersonalities(dbPersonalities);
-      setActivePersonality(dbPersonalities[0]); 
+      if (dbPersonalities && dbPersonalities.length > 0) {
+        setPersonalities(dbPersonalities);
+        setActivePersonality(dbPersonalities[0]); 
+      }
+      
+      const hwInfo = await window.dukeAPI.scanHardware();
+      setGpuData(hwInfo);
     };
-    loadDB();
+    
+    initializeApp();
   }, []);
 
   useEffect(() => {
     if (activePersonality) {
       window.dukeAPI.setEnginePersonality(activePersonality.systemPrompt);
     }
-  }, [activePersonality]);
+  }, [activePersonality, selectedModel]);
+
+  useEffect(() => {
+    setIsModelLoaded(!!selectedModel);
+  }, [selectedModel]);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -92,6 +102,11 @@ export default function App() {
       setMessages([]); 
       setChatTopic('New Interactive Session');
       setActiveView('chat');
+      
+      // FIX: Force C++ Engine to wipe its VRAM history so the new chat doesn't bleed
+      if (activePersonality) {
+         window.dukeAPI.setEnginePersonality(activePersonality.systemPrompt);
+      }
     } else {
       setActiveView(view);
     }
@@ -114,7 +129,7 @@ export default function App() {
     const updatedPersonalities = await window.dukeAPI.deletePersonality(id);
     setPersonalities(updatedPersonalities);
     if (activePersonality?.id === id) {
-      setActivePersonality(updatedPersonalities.find(p => p.id === 'p_default'));
+      setActivePersonality(updatedPersonalities.find(p => p.id === 'p_default') || updatedPersonalities[0]);
     }
   };
 
@@ -149,7 +164,8 @@ export default function App() {
                 selectedApi={selectedApi} setSelectedApi={setSelectedApi} apiKey={apiKey} setApiKey={setApiKey} 
                 selectedModel={selectedModel} setSelectedModel={setSelectedModel}
                 selectedVisionModel={selectedVisionModel} setSelectedVisionModel={setSelectedVisionModel}
-                setIsModelLoaded={setIsModelLoaded} 
+                setIsModelLoaded={setIsModelLoaded}
+                gpuData={gpuData} 
               />
             )}
             {activeView === 'history' && <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />}

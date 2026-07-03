@@ -5,6 +5,8 @@ import { engine } from './components/inferenceEngine.js';
 import { DatabaseService } from './backend/DatabaseService.js';
 import { registerIpcHandlers } from './backend/IpcHandlers.js';
 import { ApiServerService } from './backend/ApiServerService.js';
+import { HardwareService } from './backend/HardwareService.js';
+import { DownloadService } from './backend/DownloadService.js';
 
 if (started) {
   app.quit();
@@ -40,12 +42,16 @@ const createWindow = () => {
 };
 
 app.whenReady().then(() => {
+  // Initialize Core Services
   const dbService = new DatabaseService(app.getPath('userData'));
+  const hardwareScanner = new HardwareService();
+  const downloader = new DownloadService(path.join(app.getPath('userData'), 'models'));
   
+  // Initialize Network Services (Defaults to OFF, waiting for UI toggle)
   apiServerInstance = new ApiServerService();
-  apiServerInstance.start(); // Active by default
   
-  registerIpcHandlers(dbService, apiServerInstance);
+  // Wire everything into the IPC Router
+  registerIpcHandlers(dbService, apiServerInstance, hardwareScanner, downloader);
   
   createWindow();
 
@@ -63,4 +69,16 @@ app.on('window-all-closed', async () => {
 app.on('will-quit', async () => {
   if (apiServerInstance) apiServerInstance.stop();
   await engine.unload();
+});
+
+process.on('SIGINT', async () => {
+  if (apiServerInstance) apiServerInstance.stop();
+  await engine.unload();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  if (apiServerInstance) apiServerInstance.stop();
+  await engine.unload();
+  process.exit(0);
 });
