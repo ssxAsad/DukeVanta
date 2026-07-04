@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('dukeAPI', {
   // --- EXISTING ENGINE & DATA CHANNELS ---
   loadModel: (data) => ipcRenderer.invoke('load-model', data),
   startChat: (data) => ipcRenderer.invoke('start-chat', data),
+  startDiscordBot: (config) => ipcRenderer.invoke('start-discord-bot', config),
+  stopDiscordBot: () => ipcRenderer.invoke('stop-discord-bot'),
   onChatStream: (callback) => {
     ipcRenderer.removeAllListeners('chat-chunk');
     ipcRenderer.on('chat-chunk', (event, chunk) => callback(chunk));

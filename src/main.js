@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { engine } from './components/inferenceEngine.js';
@@ -7,12 +7,14 @@ import { registerIpcHandlers } from './backend/IpcHandlers.js';
 import { ApiServerService } from './backend/ApiServerService.js';
 import { HardwareService } from './backend/HardwareService.js';
 import { DownloadService } from './backend/DownloadService.js';
+import DiscordBridge from './backend/discordBridge.js'; // The new Bridge import
 
 if (started) {
   app.quit();
 }
 
 let apiServerInstance = null;
+let discordBridgeInstance = null; // Store globally for graceful shutdown
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -47,12 +49,34 @@ app.whenReady().then(() => {
   const hardwareScanner = new HardwareService();
   const downloader = new DownloadService(path.join(app.getPath('userData'), 'models'));
   
-  // Initialize Network Services (Defaults to OFF, waiting for UI toggle)
+  // Initialize Network & Bridge Services
   apiServerInstance = new ApiServerService();
+  discordBridgeInstance = new DiscordBridge(engine);
   
   // Wire everything into the IPC Router
   registerIpcHandlers(dbService, apiServerInstance, hardwareScanner, downloader);
   
+  // Register Discord Bridge IPC Handlers
+  ipcMain.handle('start-discord-bot', async (event, config) => {
+    try {
+      await discordBridgeInstance.start(config);
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to start bot:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('stop-discord-bot', async () => {
+    try {
+      await discordBridgeInstance.stop();
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to stop bot:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -60,25 +84,30 @@ app.whenReady().then(() => {
   });
 });
 
+// --- Graceful Shutdown Handlers ---
 app.on('window-all-closed', async () => {
   if (apiServerInstance) apiServerInstance.stop();
+  if (discordBridgeInstance) await discordBridgeInstance.stop(); // Clean Discord disconnect
   await engine.unload();
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('will-quit', async () => {
   if (apiServerInstance) apiServerInstance.stop();
+  if (discordBridgeInstance) await discordBridgeInstance.stop();
   await engine.unload();
 });
 
 process.on('SIGINT', async () => {
   if (apiServerInstance) apiServerInstance.stop();
+  if (discordBridgeInstance) await discordBridgeInstance.stop();
   await engine.unload();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   if (apiServerInstance) apiServerInstance.stop();
+  if (discordBridgeInstance) await discordBridgeInstance.stop();
   await engine.unload();
   process.exit(0);
 });

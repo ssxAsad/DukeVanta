@@ -2,61 +2,92 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Sidebar({ isSidebarOpen, setIsSidebarOpen, activeView, chatTopic, handleNavigation }) {
+  
+  const navItems = [
+    { id: 'chat', label: 'Current Session' },
+    { id: 'history', label: 'Recent Chats' },
+    { id: 'personalities', label: 'Personas' },
+    { id: 'settings', label: 'System Settings' },
+    { id: 'discord-bot', label: 'Tools' }
+  ];
+
   return (
     <>
-      {/* BACKDROP OVERLAY */}
+      {/* Mobile/Overlay Backdrop */}
       <AnimatePresence>
         {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)', zIndex: 40 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 90, backdropFilter: 'blur(4px)' }}
           />
         )}
       </AnimatePresence>
 
-      {/* SLIDING DRAWER */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.aside
-            initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '300px', background: 'rgba(10, 10, 15, 0.95)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRight: '1px solid rgba(255,255,255,0.05)', zIndex: 50, display: 'flex', flexDirection: 'column', padding: '32px 24px', boxSizing: 'border-box', boxShadow: '12px 0 40px rgba(0,0,0,0.8)' }}
+      {/* Sidebar Container */}
+      <motion.aside 
+        initial={{ x: -300 }} 
+        animate={{ x: isSidebarOpen ? 0 : -300 }} 
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        style={{ width: '280px', background: '#0a0a0c', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 100, boxShadow: isSidebarOpen ? '20px 0 50px rgba(0,0,0,0.5)' : 'none', boxSizing: 'border-box' }}
+      >
+        {/* Top Header */}
+        <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
+          <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '1px', color: '#fff' }}>
+            DUKE<span style={{ color: '#7c5cfa' }}>VANTA</span>
+          </span>
+          <button onClick={() => setIsSidebarOpen(false)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '18px' }}>×</button>
+        </div>
+
+        {/* New Session Button */}
+        <div style={{ padding: '24px 24px 12px 24px', flexShrink: 0, boxSizing: 'border-box' }}>
+          <button 
+            onClick={() => handleNavigation('new')}
+            style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'rgba(124, 92, 250, 0.1)', color: '#7c5cfa', border: '1px solid rgba(124, 92, 250, 0.3)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
           >
-            <div style={{ marginBottom: '40px', padding: '16px', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Current Context</span>
-              <h3 style={{ margin: '4px 0 0 0', fontSize: '15px', color: '#14b8a6', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chatTopic}</h3>
-            </div>
+            Initialize New Thread
+          </button>
+        </div>
 
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-              <motion.button onClick={() => handleNavigation('new')} whileTap={{ scale: 0.96 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '14px 16px', borderRadius: '12px', textAlign: 'left', color: '#ececec', fontWeight: 500, fontSize: '14px', cursor: 'pointer', background: 'transparent', border: 'none' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                New Chat
-              </motion.button>
-              
-              <motion.button onClick={() => handleNavigation('personalities')} whileTap={{ scale: 0.96 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '14px 16px', borderRadius: '12px', textAlign: 'left', color: activeView === 'personalities' ? '#14b8a6' : '#888', fontWeight: activeView === 'personalities' ? 600 : 500, fontSize: '14px', cursor: 'pointer', background: activeView === 'personalities' ? 'rgba(20, 184, 166, 0.1)' : 'transparent', border: 'none' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                Identities
-              </motion.button>
+        {/* Flat Navigation List */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {navItems.map(item => {
+              const isActive = activeView === item.id;
+              return (
+                <button 
+                  key={item.id}
+                  onClick={() => handleNavigation(item.id)}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    width: '100%', 
+                    padding: '12px 16px', 
+                    borderRadius: '10px', 
+                    background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent', 
+                    border: 'none', 
+                    color: isActive ? '#fff' : '#888', 
+                    cursor: 'pointer', 
+                    textAlign: 'left', 
+                    fontWeight: 500, 
+                    transition: 'all 0.2s' 
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-              <motion.button onClick={() => handleNavigation('history')} whileTap={{ scale: 0.96 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '14px 16px', borderRadius: '12px', textAlign: 'left', color: activeView === 'history' ? '#14b8a6' : '#888', fontWeight: activeView === 'history' ? 600 : 500, fontSize: '14px', cursor: 'pointer', background: activeView === 'history' ? 'rgba(20, 184, 166, 0.1)' : 'transparent', border: 'none' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                History
-              </motion.button>
-
-              <div style={{ margin: 'auto' }} /> 
-
-              <motion.button onClick={() => handleNavigation('settings')} whileTap={{ scale: 0.96 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '14px 16px', borderRadius: '12px', textAlign: 'left', color: activeView === 'settings' ? '#14b8a6' : '#888', fontWeight: activeView === 'settings' ? 600 : 500, fontSize: '14px', cursor: 'pointer', background: activeView === 'settings' ? 'rgba(20, 184, 166, 0.1)' : 'transparent', border: 'none' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                System Settings
-              </motion.button>
-            </nav>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+        {/* Bottom Status / Topic Indicator */}
+        <div style={{ padding: '20px 24px 28px 24px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)', flexShrink: 0, boxSizing: 'border-box' }}>
+          <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Active Context</div>
+          <div style={{ fontSize: '13px', color: '#ececec', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {activeView === 'chat' ? chatTopic : 'System Interface'}
+          </div>
+        </div>
+      </motion.aside>
     </>
   );
 }

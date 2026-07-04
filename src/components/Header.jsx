@@ -10,24 +10,23 @@ export default function Header({ setIsSidebarOpen, activeView, isLocalMode, isMo
     await window.dukeAPI.toggleApiServer(nextState);
   };
 
-  // Dynamic evaluation of real-time engine states
   let statusText = "No Model Loaded";
-  let statusColor = "#ef4444"; // Warning Red
+  let statusColor = "#ef4444"; 
 
   if (isModelLoaded) {
     statusText = isLocalMode ? "Local LLM" : "Cloud API Active";
-    statusColor = "#14b8a6"; // Premium Teal
+    statusColor = "#14b8a6"; 
   }
 
   return (
     <header style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', background: 'linear-gradient(to bottom, #050505 60%, transparent)', borderBottom: '1px solid rgba(255,255,255,0.02)', zIndex: 50 }}>
       
-      {/* Sidebar Trigger (Left) */}
-      <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: '#ececec', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', zIndex: 10 }}>
+      {/* Sidebar Trigger (Left) - FIX: Added Toggle State (prev => !prev) */}
+      <button onClick={() => setIsSidebarOpen(prev => !prev)} style={{ background: 'transparent', border: 'none', color: '#ececec', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', zIndex: 10 }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
       </button>
 
-      {/* Centered Logo (Absolute Centering) - INCREASED SIZE TO 55 */}
+      {/* Centered Logo */}
       <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', zIndex: 5 }}>
         <Logo size={55} />
       </div>

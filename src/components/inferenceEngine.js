@@ -126,7 +126,7 @@ class InferenceEngine {
           frequencyPenalty: 0.3,
           presencePenalty: 0.2
         },
-        maxTokens: 1024, // hard stop so a runaway loop can't fill the context
+        maxTokens: 220, // short-reply cap: keeps latency low and backstops the "keep it short" prompt rule
         signal: abortController.signal,
         stopOnAbortSignal: true, // resolve with partial text instead of throwing on abort
         onToken: handleToken

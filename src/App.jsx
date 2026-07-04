@@ -7,6 +7,7 @@ import ChatView from './components/ChatView';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
 import PersonalityView from './components/PersonalityView';
+import ToolsView from './components/ToolsView'; // Imported the new ToolsView
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -171,6 +172,9 @@ export default function App() {
             {activeView === 'history' && <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />}
             {activeView === 'personalities' && <PersonalityView personalities={personalities} setPersonalities={setPersonalities} activePersonality={activePersonality} selectPersonality={selectPersonality} deletePersonality={deletePersonality} />}
             {activeView === 'chat' && <ChatView messages={messages} setMessages={setMessages} selectedModel={selectedModel} selectedVisionModel={selectedVisionModel} />}
+            
+            {/* INJECTED TOOLS VIEW ROUTE */}
+            {activeView === 'discord-bot' && <ToolsView selectedModel={selectedModel} />}
           </AnimatePresence>
         </div>
       </main>
