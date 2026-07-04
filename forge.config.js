@@ -7,7 +7,8 @@ module.exports = {
     asar: {
       unpack: "*.{node,dll,exe,dylib,so,bin}"
     },
-    setupIcon: './src/assets/dv.ico' 
+    setupIcon: './src/assets/dv.ico', 
+    icon: './src/assets/dv.ico'
   },
   rebuildConfig: {},
   makers: [

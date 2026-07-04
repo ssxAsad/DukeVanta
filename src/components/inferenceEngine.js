@@ -71,18 +71,82 @@ class InferenceEngine {
     }
   }
 
+  // Generic degenerate-output detector: looks for a short text pattern
+  // (anywhere from 4 to 40 chars — a word, phrase, or sentence fragment)
+  // that repeats 3 times in a row at the tail of the generated text.
+  // This catches token-loop and phrase-loop failure modes regardless of
+  // what caused them (greedy decoding, an internal refusal/compliance
+  // conflict, degenerate sampling, etc.) without caring about *what*
+  // the repeated content actually says.
+  _isLooping(fullText) {
+    const tail = fullText.slice(-200);
+    for (let patLen = 4; patLen <= 40; patLen++) {
+      if (tail.length < patLen * 3) continue;
+      const p1 = tail.slice(-patLen);
+      const p2 = tail.slice(-patLen * 2, -patLen);
+      const p3 = tail.slice(-patLen * 3, -patLen * 2);
+      if (p1.trim().length > 0 && p1 === p2 && p2 === p3) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async generateResponse(userMessage, chunkCallback) {
     if (!this.session) throw new Error("No model loaded in VRAM.");
 
+    const abortController = new AbortController();
+    let fullText = '';
+    let loopDetected = false;
+
+    const handleToken = (chunk) => {
+      const text = this.model.detokenize(chunk);
+      fullText += text;
+      if (chunkCallback) chunkCallback(text);
+
+      if (!loopDetected && this._isLooping(fullText)) {
+        loopDetected = true;
+        console.warn("[Engine] Repetition loop detected — aborting generation early.");
+        abortController.abort();
+      }
+    };
+
     try {
       const response = await this.session.prompt(userMessage, {
-        onToken: (chunk) => {
-          const text = this.model.detokenize(chunk);
-          if (chunkCallback) chunkCallback(text);
-        }
+        // Non-zero temperature breaks the greedy-decoding loops that cause
+        // repeated phrases; topK/topP add a bit of controlled randomness.
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.9,
+        // Widen + strengthen the repeat penalty window so loops can't
+        // "age out" of it on longer responses.
+        repeatPenalty: {
+          lastTokens: 128,
+          penalty: 1.3,
+          frequencyPenalty: 0.3,
+          presencePenalty: 0.2
+        },
+        maxTokens: 1024, // hard stop so a runaway loop can't fill the context
+        signal: abortController.signal,
+        stopOnAbortSignal: true, // resolve with partial text instead of throwing on abort
+        onToken: handleToken
       });
+
+      if (loopDetected) {
+        const notice = "\n\n*[Generation stopped — the model got stuck repeating itself.]*";
+        if (chunkCallback) chunkCallback(notice);
+        return (response || fullText) + notice;
+      }
       return response;
+
     } catch (error) {
+      // Some versions/backends may still reject the promise on abort
+      // rather than resolving with partial text — handle that gracefully.
+      if (loopDetected) {
+        const notice = "\n\n*[Generation stopped — the model got stuck repeating itself.]*";
+        if (chunkCallback) chunkCallback(notice);
+        return fullText + notice;
+      }
       console.error("[Engine Inference Error]:", error);
       throw error;
     }
