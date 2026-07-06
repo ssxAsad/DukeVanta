@@ -4,7 +4,7 @@ export default function LocalArsenal({ localModels, refreshLocalCache, handleLoa
   return (
     <div style={{ background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <label style={{ display: 'block', color: '#ececec', fontWeight: 600, fontSize: '15px' }}>Local Arsenal (Cached Models)</label>
+        <label style={{ display: 'block', color: '#ececec', fontWeight: 600, fontSize: '15px' }}>Detected models</label>
         <button onClick={refreshLocalCache} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '12px' }}>↻ Refresh</button>
       </div>
       
@@ -25,7 +25,7 @@ export default function LocalArsenal({ localModels, refreshLocalCache, handleLoa
                   disabled={isBooting} 
                   style={{ padding: '8px 16px', background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20, 184, 166, 0.3)', borderRadius: '8px', cursor: isBooting ? 'wait' : 'pointer', fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap' }}
                 >
-                  Load Engine
+                  Load Model
                 </button>
             </div>
           ))}

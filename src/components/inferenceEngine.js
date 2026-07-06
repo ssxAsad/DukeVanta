@@ -25,6 +25,12 @@ class InferenceEngine {
     try {
       this.model = await this.llama.loadModel({ 
         modelPath: modelPath,
+        // 'auto' lets node-llama-cpp pick the largest number of layers that
+        // actually fits in the available VRAM, and fall back toward partial
+        // GPU / CPU offload on smaller cards instead of hard-failing.
+        // ('max' forces every layer onto the GPU regardless of fit, which is
+        // what caused the VRAM error together with the fixed context size.)
+        gpuLayers: 'auto',
         // V3 API: Native VRAM progress hook (returns a float between 0.0 and 1.0)
         onLoadProgress: (progress) => {
           if (progressCallback) {
@@ -34,7 +40,18 @@ class InferenceEngine {
         }
       });
       
-      this.context = await this.model.createContext();
+      this.context = await this.model.createContext({
+        // A plain number here (e.g. contextSize: 4096) forces that EXACT size
+        // and throws if it doesn't fit in available VRAM — which is exactly
+        // what just happened. { max: 4096 } instead tells it "use up to 4096,
+        // but shrink automatically to whatever actually fits." You still get
+        // as much context as your hardware allows, without a hard crash.
+        contextSize: { max: 4096 },
+        batchSize: 512,
+        // Use all available CPU threads for the portion of work that stays
+        // on CPU (embeddings, sampling, any non-offloaded layers).
+        threads: Math.max(1, require('os').cpus().length)
+      });
       
       this.session = new this.llamaModule.LlamaChatSession({
         contextSequence: this.context.getSequence(),
@@ -61,7 +78,11 @@ class InferenceEngine {
       }
       
       // 2. Create a brand new, empty context block
-      this.context = await this.model.createContext();
+      this.context = await this.model.createContext({
+        contextSize: { max: 4096 },
+        batchSize: 512,
+        threads: Math.max(1, require('os').cpus().length)
+      });
       
       // 3. Bind the new session with the new identity rules
       this.session = new this.llamaModule.LlamaChatSession({
@@ -118,13 +139,19 @@ class InferenceEngine {
         temperature: 0.7,
         topK: 40,
         topP: 0.9,
-        // Widen + strengthen the repeat penalty window so loops can't
-        // "age out" of it on longer responses.
+        // Repeat penalty window. Note this is a real speed/quality tradeoff:
+        // the sampler re-scans this many trailing tokens on *every single
+        // generated token*, so lastTokens: 1024 was quietly multiplying the
+        // per-token cost of generation many times over — likely the single
+        // biggest cause of the lag. 256 still reaches back further than the
+        // old 128-token default (enough to stop most loops from re-forming)
+        // without paying for a full 1024-token rescan every step. Raise this
+        // only if you still see cross-turn repetition and can afford the cost.
         repeatPenalty: {
-          lastTokens: 128,
+          lastTokens: 256,
           penalty: 1.3,
-          frequencyPenalty: 0.3,
-          presencePenalty: 0.2
+          frequencyPenalty: 0.4,
+          presencePenalty: 0.3
         },
         maxTokens: 220, // short-reply cap: keeps latency low and backstops the "keep it short" prompt rule
         signal: abortController.signal,

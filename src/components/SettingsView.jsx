@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import HuggingFaceHub from './HuggingFaceHub';
 import LocalArsenal from './LocalArsenal';
 import CloudGateway from './CloudGateway';
+import ActiveDownloadTracker from './ActiveDownloadTracker';
 
 export default function SettingsView({ 
   isLocalMode, setIsLocalMode, 
@@ -52,7 +53,7 @@ export default function SettingsView({
     if (!isDownloaded) {
       try {
         const dlResponse = await window.dukeAPI.downloadModel({ url: fileDef.url, fileName: fileDef.filename });
-        setDownloadTracker({ active: false, file: '', percent: 0, speed: 0 });
+        setDownloadTracker({ active: false, file: '', percent: 0, speed: 0, downloadedMB: 0, totalMB: 0 });
         if (!dlResponse.success) throw new Error("Download interrupted");
         
         await refreshLocalCache();
@@ -85,7 +86,7 @@ export default function SettingsView({
         setSelectedModel(targetObj);
       }
     } else {
-      alert("Engine Initialization Failed: " + loadResponse.error);
+      alert("Model Initialization Failed: " + loadResponse.error);
     }
     setIsBooting(false);
   };
@@ -101,7 +102,7 @@ export default function SettingsView({
   const handleCancelDownload = async () => {
     if (downloadTracker.file) {
       await window.dukeAPI.cancelDownload(downloadTracker.file);
-      setDownloadTracker({ active: false, file: '', percent: 0, speed: 0 });
+      setDownloadTracker({ active: false, file: '', percent: 0, speed: 0, downloadedMB: 0, totalMB: 0 });
     }
   };
 
@@ -133,17 +134,23 @@ export default function SettingsView({
       </AnimatePresence>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <h2 style={{ fontWeight: 600, color: '#ececec', margin: 0 }}>System Core Settings</h2>
+        <h2 style={{ fontWeight: 600, color: '#ececec', margin: 0 }}>System Settings</h2>
         {gpuData && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '12px', color: '#888' }}>Hardware Matrix:</span>
+            <span style={{ fontSize: '12px', color: '#888' }}>Hardware detected:</span>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#14b8a6' }}>{gpuData.gpuName} ({gpuData.vramGB}GB VRAM)</span>
           </div>
         )}
       </div>
 
+      {/* --- DEDICATED ACTIVE DOWNLOAD TRACKER --- */}
+      <ActiveDownloadTracker 
+        downloadTracker={downloadTracker} 
+        handleCancelDownload={handleCancelDownload} 
+      />
+
       <div style={{ display: 'flex', gap: '16px', marginBottom: '40px' }}>
-        <button onClick={() => setIsLocalMode(true)} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: isLocalMode ? '1px solid rgba(20, 184, 166, 0.6)' : '1px solid rgba(255,255,255,0.05)', background: isLocalMode ? 'rgba(20, 184, 166, 0.1)' : 'transparent', color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>Local Neuromorphic Engine</button>
+        <button onClick={() => setIsLocalMode(true)} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: isLocalMode ? '1px solid rgba(20, 184, 166, 0.6)' : '1px solid rgba(255,255,255,0.05)', background: isLocalMode ? 'rgba(20, 184, 166, 0.1)' : 'transparent', color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>Offline Inference</button>
         <button onClick={() => setIsLocalMode(false)} style={{ flex: 1, padding: '16px', borderRadius: '12px', border: !isLocalMode ? '1px solid rgba(20, 184, 166, 0.6)' : '1px solid rgba(255,255,255,0.05)', background: !isLocalMode ? 'rgba(20, 184, 166, 0.1)' : 'transparent', color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>Connect to API Providers</button>
       </div>
 

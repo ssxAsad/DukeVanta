@@ -63,7 +63,7 @@ export default function HuggingFaceHub({
 
   return (
     <div ref={dropdownRef} style={{ background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)', position: 'relative' }}>
-      <label style={{ display: 'block', color: '#ececec', fontWeight: 600, fontSize: '15px', marginBottom: '16px' }}>Core Intelligence Explorer (Hugging Face Live Hub)</label>
+      <label style={{ display: 'block', color: '#ececec', fontWeight: 600, fontSize: '15px', marginBottom: '16px' }}>Model Download</label>
       
       <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
         <input 
@@ -130,7 +130,7 @@ export default function HuggingFaceHub({
                               </div>
                             ) : (
                               <button onClick={() => { handleAction(file, false); setLlmDropdownOpen(false); }} disabled={isBooting} style={{ padding: '6px 14px', background: isDownloaded ? 'rgba(20, 184, 166, 0.1)' : 'rgba(255,255,255,0.05)', border: isDownloaded ? '1px solid #14b8a6' : '1px solid rgba(255,255,255,0.1)', color: isDownloaded ? '#14b8a6' : '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: isBooting ? 'wait' : 'pointer' }}>
-                                {isDownloaded ? 'Load Engine' : 'Download & Load'}
+                                {isDownloaded ? 'Load Model' : 'Download & Load'}
                               </button>
                             )}
                           </div>

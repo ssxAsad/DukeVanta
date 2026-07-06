@@ -1,13 +1,67 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 
+// How many turns a channel can go before we force a fresh context.
+// This keeps old scene-setups from lingering in context indefinitely
+// and compounding into a "the bot only ever writes this one scene" loop.
+const CONTEXT_RESET_EVERY_N_TURNS = 20;
+
 class DiscordBridge {
   constructor(engine) {
-    this.engine = engine; 
+    this.engine = engine;
     this.client = null;
+    this.systemPrompt = null;
+
+    // Per-channel state for cross-turn repetition detection + context resets
+    this.recentReplies = new Map(); // channelId -> string[] (last few bot replies)
+    this.turnCounts = new Map();    // channelId -> number
+  }
+
+  // Simple Jaccard similarity over normalized word sets. Cheap, no deps,
+  // good enough to catch "same scene/beats, different nouns" repeats.
+  _similarity(a, b) {
+    const norm = (s) =>
+      s
+        .toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(Boolean);
+    const wa = new Set(norm(a));
+    const wb = new Set(norm(b));
+    if (wa.size === 0 || wb.size === 0) return 0;
+    let inter = 0;
+    for (const w of wa) if (wb.has(w)) inter++;
+    const union = new Set([...wa, ...wb]).size;
+    return union === 0 ? 0 : inter / union;
+  }
+
+  _isRepeatOfRecent(channelId, text) {
+    const recent = this.recentReplies.get(channelId) || [];
+    return recent.some((prev) => this._similarity(prev, text) > 0.5);
+  }
+
+  _recordReply(channelId, text) {
+    const list = this.recentReplies.get(channelId) || [];
+    list.push(text);
+    this.recentReplies.set(channelId, list.slice(-5)); // keep last 5
+  }
+
+  async _maybeResetContext(channelId) {
+    const count = (this.turnCounts.get(channelId) || 0) + 1;
+    this.turnCounts.set(channelId, count);
+
+    if (count % CONTEXT_RESET_EVERY_N_TURNS === 0 && this.systemPrompt) {
+      console.log(
+        `[Discord Bridge] Refreshing context for channel ${channelId} after ${count} turns.`
+      );
+      await this.engine.setPersonality(this.systemPrompt);
+      this.recentReplies.delete(channelId);
+    }
   }
 
   async start(config) {
     if (this.client) await this.stop();
+
+    this.systemPrompt = config.systemPrompt;
 
     // Set the strict personality before bringing the bot online
     await this.engine.setPersonality(config.systemPrompt);
@@ -30,16 +84,16 @@ class DiscordBridge {
 
     this.client.on('ready', () => {
       console.log(`[Discord Bridge] Online as ${this.client.user.tag}`);
-      
+
       // Force Discord to broadcast the "Online" status to all servers
       this.client.user.setPresence({
         status: 'online',
-        activities: [{ 
-          name: 'Local LLM Engine', 
+        activities: [{
+          name: 'Local LLM Engine',
           type: 0 // Playing
         }]
       });
-      
+
       console.log("[Discord Bridge] Presence broadcast forced.");
     });
 
@@ -53,6 +107,8 @@ class DiscordBridge {
       // Only respond if the bot is specifically mentioned
       if (!message.mentions.has(this.client.user)) return;
 
+      const channelId = message.channel.id;
+
       try {
         // Strip the mention (<@123...>) from the user's text
         const userText = message.content.replace(/<@!?\d+>/g, '').trim();
@@ -65,6 +121,28 @@ class DiscordBridge {
         await this.engine.generateResponse(userText, (chunk) => {
           fullResponse += chunk;
         });
+
+        // Cross-turn repetition check: if this reply is too similar to one
+        // of the last few replies in this channel, regenerate once with an
+        // explicit nudge before falling back to whatever we got.
+        if (this._isRepeatOfRecent(channelId, fullResponse)) {
+          console.warn(`[Discord Bridge] Near-duplicate reply detected in channel ${channelId} — regenerating.`);
+          let retryText = "";
+          await this.engine.generateResponse(
+            userText +
+              "\n\n(System note: your last few replies have repeated the same scenario/phrasing. " +
+              "Give a genuinely different response this time — new angle, new wording, don't reuse prior setups.)",
+            (chunk) => {
+              retryText += chunk;
+            }
+          );
+          if (retryText.trim().length > 0) {
+            fullResponse = retryText;
+          }
+        }
+
+        this._recordReply(channelId, fullResponse);
+        await this._maybeResetContext(channelId);
 
         // Split on the "|||" delimiter into up to 3 separate messages,
         // so the bot can send a quick burst of short texts instead of
@@ -109,6 +187,8 @@ class DiscordBridge {
       this.client = null;
       console.log("[Discord Bridge] Connection terminated.");
     }
+    this.recentReplies.clear();
+    this.turnCounts.clear();
     return true;
   }
 }
