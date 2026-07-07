@@ -1,195 +1,193 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ToolsView({ selectedModel }) {
-  const [activeTool, setActiveTool] = useState(null); // No tool selected by default
+  const [activeTool, setActiveTool] = useState(null);
   
-  // Bot Builder State
-  const [botConfig, setBotConfig] = useState({
-    name: 'Vergil',
-    token: '',
-    systemPrompt: 'You are a stoic and arrogant entity. You speak with absolute authority and minimal words.',
-  });
+  // Multi-Bot State
+  const [savedBots, setSavedBots] = useState([]);
+  const [activeBotIds, setActiveBotIds] = useState({});
+  const [editingBot, setEditingBot] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sysError, setSysError] = useState(null);
 
-  const [isBotRunning, setIsBotRunning] = useState(false);
-  const [isBotLoading, setIsBotLoading] = useState(false);
-  const [botError, setBotError] = useState(null);
+  useEffect(() => {
+    if (activeTool === 'discord-bot') {
+      fetchBots();
+      checkStatuses();
+      const interval = setInterval(checkStatuses, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTool]);
 
-  const handleInputChange = (e) => {
-    setBotConfig({ ...botConfig, [e.target.name]: e.target.value });
+  const fetchBots = async () => {
+    const bots = await window.dukeAPI.getDiscordBots();
+    setSavedBots(bots);
   };
 
-  const toggleBotEngine = async () => {
-    setBotError(null);
-    setIsBotLoading(true);
+  const checkStatuses = async () => {
+    const statuses = await window.dukeAPI.getBotStatuses();
+    setActiveBotIds(statuses);
+  };
 
-    try {
-      if (!isBotRunning) {
-        const result = await window.dukeAPI.startDiscordBot({
-          token: botConfig.token,
-          systemPrompt: botConfig.systemPrompt,
-        });
+  const handleCreateNew = () => {
+    setSysError(null);
+    setEditingBot({
+      id: null,
+      name: 'New Identity',
+      token: '',
+      systemPrompt: 'You are a stoic and arrogant entity. You speak with absolute authority and minimal words.'
+    });
+  };
 
-        if (result.success) {
-          setIsBotRunning(true);
-        } else {
-          setBotError(result.error || 'Failed to start bot.');
-        }
-      } else {
-        const result = await window.dukeAPI.stopDiscordBot();
+  const handleSaveBot = async () => {
+    if (!editingBot.name || !editingBot.systemPrompt) {
+      setSysError("Name and System Prompt are required.");
+      return;
+    }
+    
+    setIsLoading(true);
+    await window.dukeAPI.saveDiscordBot(editingBot);
+    await fetchBots();
+    setEditingBot(null);
+    setIsLoading(false);
+  };
 
-        if (result.success) {
-          setIsBotRunning(false);
-        } else {
-          setBotError(result.error || 'Failed to stop bot.');
-        }
-      }
-    } catch (err) {
-      setBotError(err.message || 'Unexpected error communicating with the bridge.');
-    } finally {
-      setIsBotLoading(false);
+  const handleDeleteBot = async (id, e) => {
+    e.stopPropagation();
+    if(window.confirm("Are you sure you want to delete this bot profile?")) {
+      await window.dukeAPI.deleteDiscordBot(id);
+      await fetchBots();
+      await checkStatuses();
     }
   };
 
+  const toggleBotState = async (id, e) => {
+    e.stopPropagation();
+    setSysError(null);
+    setIsLoading(true);
+
+    const isRunning = activeBotIds[id];
+    let result;
+    
+    if (isRunning) {
+      result = await window.dukeAPI.stopDiscordBot(id);
+    } else {
+      if (!selectedModel) {
+        setSysError("A local model must be loaded in System Settings first.");
+        setIsLoading(false);
+        return;
+      }
+      result = await window.dukeAPI.startDiscordBot(id);
+    }
+
+    if (result.success) {
+      await checkStatuses();
+    } else {
+      setSysError(result.error || `Failed to ${isRunning ? 'stop' : 'start'} the bot.`);
+    }
+    setIsLoading(false);
+  };
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      exit={{ opacity: 0, y: -15 }} 
-      style={{ flex: 1, background: 'rgba(15, 15, 20, 0.8)', backdropFilter: 'blur(32px)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', padding: '40px', color: 'white', overflowY: 'auto', display: 'flex', gap: '40px' }}
-    >
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} style={{ flex: 1, background: 'rgba(15, 15, 20, 0.8)', backdropFilter: 'blur(32px)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', padding: '40px', color: 'white', overflowY: 'auto', display: 'flex', gap: '40px' }}>
       
-      {/* Left Column: Tool Selection List */}
+      {/* Left Column */}
       <div style={{ width: '240px', borderRight: '1px solid rgba(255,255,255,0.05)', paddingRight: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <h2 style={{ fontWeight: 600, color: '#ececec', margin: '0 0 24px 0', fontSize: '20px' }}>Tools</h2>
-        
-        <button 
-          onClick={() => setActiveTool('discord-bot')}
-          style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', background: activeTool === 'discord-bot' ? 'rgba(255,255,255,0.05)' : 'transparent', border: '1px solid transparent', color: activeTool === 'discord-bot' ? '#fff' : '#888', cursor: 'pointer', textAlign: 'left', fontWeight: 500, transition: 'all 0.2s' }}
-        >
+        <button onClick={() => setActiveTool('discord-bot')} style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', background: activeTool === 'discord-bot' ? 'rgba(255,255,255,0.05)' : 'transparent', border: '1px solid transparent', color: activeTool === 'discord-bot' ? '#fff' : '#888', cursor: 'pointer', textAlign: 'left', fontWeight: 500, transition: 'all 0.2s' }}>
           Discord Bot Builder
         </button>
       </div>
 
-      {/* Right Column: Active Tool Interface */}
+      {/* Right Column */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         
         {activeTool === null && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#555' }}
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#555' }}>
             <span style={{ fontSize: '14px', fontWeight: 500 }}>Select a tool to get started</span>
-            <span style={{ fontSize: '12px', color: '#444' }}>Choose an option from the list on the left</span>
           </motion.div>
         )}
 
         {activeTool === 'discord-bot' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '600px' }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '700px' }}>
             
-            <div>
-              <h3 style={{ margin: '0 0 8px 0', color: '#ececec', fontSize: '18px', fontWeight: 600 }}>Discord Local Bridge</h3>
-              <p style={{ margin: 0, color: '#888', fontSize: '13px', lineHeight: '1.5' }}>
-                Deploy the currently active VRAM model directly to a Discord bot instance. The bot will use the local engine for inference.
-              </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', color: '#ececec', fontSize: '18px', fontWeight: 600 }}>Discord Local Bridge</h3>
+                <p style={{ margin: 0, color: '#888', fontSize: '13px', lineHeight: '1.5' }}>Manage standalone bot profiles. Multiple bots can share the engine concurrently if using different tokens.</p>
+              </div>
+              {!editingBot && (
+                <button onClick={handleCreateNew} style={{ background: 'rgba(124, 92, 250, 0.1)', color: '#7c5cfa', border: '1px solid rgba(124, 92, 250, 0.3)', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Identity</button>
+              )}
             </div>
 
-            {/* Status Panel */}
-            <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Attached Engine</span>
-                  <span style={{ fontSize: '14px', color: selectedModel ? '#14b8a6' : '#ef4444', fontWeight: 500 }}>
-                    {selectedModel ? selectedModel.name : 'NO MODEL LOADED'}
-                  </span>
-               </div>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isBotRunning ? '#14b8a6' : '#555' }} />
-                 <span style={{ fontSize: '12px', color: '#888', fontWeight: 600 }}>
-                   {isBotLoading ? 'CONNECTING...' : (isBotRunning ? 'ONLINE' : 'OFFLINE')}
-                 </span>
-               </div>
-            </div>
-
-            {/* Configuration Form */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Bot Identifier</label>
-                <input 
-                  type="text" 
-                  name="name"
-                  value={botConfig.name} 
-                  onChange={handleInputChange} 
-                  placeholder="e.g., Target Identity" 
-                  style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: 'white', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} 
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Discord Authentication Token</label>
-                <input 
-                  type="password" 
-                  name="token"
-                  value={botConfig.token} 
-                  onChange={handleInputChange} 
-                  placeholder="MTEx..." 
-                  style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: 'white', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }} 
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Absolute System Prompt</label>
-                <textarea 
-                  name="systemPrompt"
-                  value={botConfig.systemPrompt} 
-                  onChange={handleInputChange} 
-                  placeholder="Define the bot's unyielding personality rules here..."
-                  style={{ width: '100%', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: '#ececec', outline: 'none', fontSize: '14px', minHeight: '120px', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5', boxSizing: 'border-box' }}
-                />
-              </div>
-
-            </div>
-
-            {/* Error Message */}
-            {botError && (
+            {sysError && (
               <div style={{ padding: '12px 16px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '13px' }}>
-                {botError}
+                {sysError}
               </div>
             )}
 
-            {/* Action Area */}
-            <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
-              <button 
-                onClick={toggleBotEngine}
-                disabled={!selectedModel || isBotLoading || !botConfig.token}
-                style={{ 
-                  width: '100%', 
-                  padding: '16px', 
-                  borderRadius: '8px', 
-                  background: isBotRunning ? 'rgba(239, 68, 68, 0.1)' : (selectedModel ? 'rgba(124, 92, 250, 0.1)' : 'rgba(255,255,255,0.02)'), 
-                  color: isBotRunning ? '#ef4444' : (selectedModel ? '#7c5cfa' : '#555'), 
-                  border: isBotRunning ? '1px solid rgba(239, 68, 68, 0.3)' : (selectedModel ? '1px solid rgba(124, 92, 250, 0.3)' : '1px solid transparent'), 
-                  fontWeight: 600, 
-                  cursor: (selectedModel && !isBotLoading && botConfig.token) ? 'pointer' : 'not-allowed', 
-                  opacity: isBotLoading ? 0.6 : 1,
-                  transition: 'all 0.2s' 
-                }}
-              >
-                {isBotLoading ? 'Working...' : (isBotRunning ? 'Terminate Bridge Connection' : 'Initialize Bot Instance')}
-              </button>
-              {!selectedModel && (
-                <p style={{ textAlign: 'center', margin: '12px 0 0 0', color: '#888', fontSize: '12px' }}>A local model must be loaded in the System Settings to initialize the bridge.</p>
-              )}
-              {selectedModel && !botConfig.token && (
-                <p style={{ textAlign: 'center', margin: '12px 0 0 0', color: '#888', fontSize: '12px' }}>Enter a Discord Authentication Token to initialize the bridge.</p>
-              )}
-            </div>
+            {/* --- LIST VIEW --- */}
+            {!editingBot && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {savedBots.length === 0 ? (
+                  <div style={{ gridColumn: 'span 2', padding: '40px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', color: '#555', fontSize: '14px' }}>No identities configured.</div>
+                ) : (
+                  savedBots.map((bot) => (
+                    <div key={bot.id} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600, color: '#ececec' }}>{bot.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: activeBotIds[bot.id] ? '#14b8a6' : '#555' }} />
+                           <span style={{ fontSize: '11px', color: '#888', fontWeight: 600 }}>{activeBotIds[bot.id] ? 'ONLINE' : 'OFFLINE'}</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={(e) => toggleBotState(bot.id, e)} disabled={isLoading} style={{ flex: 1, padding: '10px', borderRadius: '6px', border: activeBotIds[bot.id] ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255,255,255,0.05)', background: activeBotIds[bot.id] ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.02)', color: activeBotIds[bot.id] ? '#ef4444' : '#ececec', cursor: isLoading ? 'wait' : 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                          {activeBotIds[bot.id] ? 'TERMINATE' : 'INITIALIZE'}
+                        </button>
+                        <button onClick={() => setEditingBot(bot)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', background: 'transparent', color: '#888', cursor: 'pointer' }}>⚙️</button>
+                        <button onClick={(e) => handleDeleteBot(bot.id, e)} style={{ padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* --- EDITOR VIEW --- */}
+            {editingBot && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: 'rgba(0,0,0,0.2)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Bot Name / Alias</label>
+                  <input type="text" value={editingBot.name} onChange={(e) => setEditingBot({...editingBot, name: e.target.value})} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Authentication Token</label>
+                  <input type="password" placeholder={editingBot.token === 'ENCRYPTED_MASK' ? '••••••••••••••••' : 'Paste new token...'} value={editingBot.token === 'ENCRYPTED_MASK' ? '' : editingBot.token} onChange={(e) => setEditingBot({...editingBot, token: e.target.value})} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: 'white', outline: 'none', boxSizing: 'border-box' }} />
+                  {editingBot.id && <span style={{ fontSize: '11px', color: '#555', marginTop: '6px', display: 'block' }}>Leave blank to keep existing secure token.</span>}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#888', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' }}>Absolute System Prompt</label>
+                  <textarea value={editingBot.systemPrompt} onChange={(e) => setEditingBot({...editingBot, systemPrompt: e.target.value})} style={{ width: '100%', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.4)', color: '#ececec', outline: 'none', minHeight: '120px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                  <button onClick={handleSaveBot} disabled={isLoading} style={{ flex: 1, padding: '14px', borderRadius: '8px', background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20, 184, 166, 0.3)', fontWeight: 600, cursor: 'pointer' }}>{isLoading ? 'Saving...' : 'Commit Configuration'}</button>
+                  <button onClick={() => setEditingBot(null)} style={{ padding: '14px 24px', borderRadius: '8px', background: 'transparent', color: '#888', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                </div>
+
+              </motion.div>
+            )}
 
           </motion.div>
         )}
       </div>
-
     </motion.div>
   );
 }

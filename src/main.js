@@ -7,14 +7,14 @@ import { registerIpcHandlers } from './backend/IpcHandlers.js';
 import { ApiServerService } from './backend/ApiServerService.js';
 import { HardwareService } from './backend/HardwareService.js';
 import { DownloadService } from './backend/DownloadService.js';
-import DiscordBridge from './backend/discordBridge.js'; // The new Bridge import
+import DiscordBotManager from './backend/DiscordBotManager.js';
 
 if (started) {
   app.quit();
 }
 
 let apiServerInstance = null;
-let discordBridgeInstance = null; // Store globally for graceful shutdown
+let botManagerInstance = null; 
 
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
@@ -51,29 +51,30 @@ app.whenReady().then(() => {
   
   // Initialize Network & Bridge Services
   apiServerInstance = new ApiServerService();
-  discordBridgeInstance = new DiscordBridge(engine);
+  botManagerInstance = new DiscordBotManager(engine, app.getPath('userData'));
   
   // Wire everything into the IPC Router
   registerIpcHandlers(dbService, apiServerInstance, hardwareScanner, downloader);
   
-  // Register Discord Bridge IPC Handlers
-  ipcMain.handle('start-discord-bot', async (event, config) => {
+  // --- NEW MULTI-BOT IPC HANDLERS ---
+  ipcMain.handle('get-discord-bots', async () => await botManagerInstance.getBots());
+  ipcMain.handle('save-discord-bot', async (event, data) => await botManagerInstance.saveBot(data));
+  ipcMain.handle('delete-discord-bot', async (event, id) => await botManagerInstance.deleteBot(id));
+  ipcMain.handle('get-bot-statuses', () => botManagerInstance.getStatuses());
+
+  ipcMain.handle('start-discord-bot', async (event, id) => {
     try {
-      await discordBridgeInstance.start(config);
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to start bot:", error);
-      return { success: false, error: error.message };
+      return await botManagerInstance.startBot(id);
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   });
 
-  ipcMain.handle('stop-discord-bot', async () => {
+  ipcMain.handle('stop-discord-bot', async (event, id) => {
     try {
-      await discordBridgeInstance.stop();
-      return { success: true };
-    } catch (error) {
-      console.error("Failed to stop bot:", error);
-      return { success: false, error: error.message };
+      return await botManagerInstance.stopBot(id);
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   });
 
@@ -87,27 +88,27 @@ app.whenReady().then(() => {
 // --- Graceful Shutdown Handlers ---
 app.on('window-all-closed', async () => {
   if (apiServerInstance) apiServerInstance.stop();
-  if (discordBridgeInstance) await discordBridgeInstance.stop(); // Clean Discord disconnect
+  if (botManagerInstance) await botManagerInstance.stopAll();
   await engine.unload();
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('will-quit', async () => {
   if (apiServerInstance) apiServerInstance.stop();
-  if (discordBridgeInstance) await discordBridgeInstance.stop();
+  if (botManagerInstance) await botManagerInstance.stopAll();
   await engine.unload();
 });
 
 process.on('SIGINT', async () => {
   if (apiServerInstance) apiServerInstance.stop();
-  if (discordBridgeInstance) await discordBridgeInstance.stop();
+  if (botManagerInstance) await botManagerInstance.stopAll();
   await engine.unload();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   if (apiServerInstance) apiServerInstance.stop();
-  if (discordBridgeInstance) await discordBridgeInstance.stop();
+  if (botManagerInstance) await botManagerInstance.stopAll();
   await engine.unload();
   process.exit(0);
 });

@@ -4,8 +4,6 @@ contextBridge.exposeInMainWorld('dukeAPI', {
   // --- EXISTING ENGINE & DATA CHANNELS ---
   loadModel: (data) => ipcRenderer.invoke('load-model', data),
   startChat: (data) => ipcRenderer.invoke('start-chat', data),
-  startDiscordBot: (config) => ipcRenderer.invoke('start-discord-bot', config),
-  stopDiscordBot: () => ipcRenderer.invoke('stop-discord-bot'),
   onChatStream: (callback) => {
     ipcRenderer.removeAllListeners('chat-chunk');
     ipcRenderer.on('chat-chunk', (event, chunk) => callback(chunk));
@@ -20,6 +18,14 @@ contextBridge.exposeInMainWorld('dukeAPI', {
   importPersonality: () => ipcRenderer.invoke('import-personality'),
   deletePersonality: (id) => ipcRenderer.invoke('delete-personality', id),
   toggleApiServer: (enable) => ipcRenderer.invoke('toggle-api-server', enable),
+
+  // --- DISCORD MULTI-BOT CHANNELS ---
+  getDiscordBots: () => ipcRenderer.invoke('get-discord-bots'),
+  saveDiscordBot: (botData) => ipcRenderer.invoke('save-discord-bot', botData),
+  deleteDiscordBot: (botId) => ipcRenderer.invoke('delete-discord-bot', botId),
+  getBotStatuses: () => ipcRenderer.invoke('get-bot-statuses'),
+  startDiscordBot: (botId) => ipcRenderer.invoke('start-discord-bot', botId),
+  stopDiscordBot: (botId) => ipcRenderer.invoke('stop-discord-bot', botId),
 
   // --- HARDWARE & DOWNLOAD CHANNELS ---
   scanHardware: () => ipcRenderer.invoke('scan-hardware'),
