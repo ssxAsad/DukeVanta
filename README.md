@@ -12,7 +12,7 @@ Run the commands in order:
 git clone https://github.com/ssxAsad/DukeVanta.git  
 cd DukeVanta  
 npm install  
-npm start //This will run the program after the setup is completed.  
+npm start                   (This will run the program after the setup is completed.)  
 
 
 
