@@ -30,6 +30,12 @@ export default function PowerInput({ value, onChange, onSubmit, onFocus, onBlur 
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit(e);
+      return;
+    }
+
     // Spawn heavy explosion on Backspace
     if (e.key === 'Backspace' && value.length > 0 && inputRef.current) {
       const now = Date.now();
@@ -124,19 +130,18 @@ export default function PowerInput({ value, onChange, onSubmit, onFocus, onBlur 
       {/* Hidden Measurement Node */}
       <span 
         ref={measureRef} 
-        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal' }}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 400, letterSpacing: 'normal' }}
       />
 
-      {/* Placeholder Text */}
       {!value && (
-        <div style={{ position: 'absolute', left: 0, pointerEvents: 'none', color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 500 }}>
-          Ask DukeVanta to execute a task...
+        <div style={{ position: 'absolute', left: 0, pointerEvents: 'none', color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 400 }}>
+          Message DukeVanta...
         </div>
       )}
 
       {/* Hardware-Accelerated Ghost Text (Fire Appearance) */}
       <div style={{ position: 'absolute', left: 0, right: 0, height: '100%', overflow: 'hidden', pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', left: 0, top: '50%', display: 'flex', alignItems: 'center', color: 'transparent', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal', transform: `translate(-${scrollLeft}px, -50%)` }}>
+        <div style={{ position: 'absolute', left: 0, top: '50%', display: 'flex', alignItems: 'center', color: 'transparent', whiteSpace: 'pre', fontFamily: 'inherit', fontSize: '15px', fontWeight: 400, letterSpacing: 'normal', transform: `translate(-${scrollLeft}px, -50%)` }}>
           {value.split('').map((char, i) => (
             <span key={`${i}-${char}`} className="fire-letter">
               {char === ' ' ? '\u00A0' : char}
@@ -145,7 +150,6 @@ export default function PowerInput({ value, onChange, onSubmit, onFocus, onBlur 
         </div>
       </div>
 
-      {/* Actual Input */}
       <input 
         ref={inputRef}
         type="text" 
@@ -156,7 +160,7 @@ export default function PowerInput({ value, onChange, onSubmit, onFocus, onBlur 
         onFocus={onFocus} 
         onBlur={onBlur}   
         spellCheck="false"
-        style={{ flex: 1, border: 'none', background: 'transparent', color: 'transparent', caretColor: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500, letterSpacing: 'normal', outline: 'none', width: '100%', position: 'relative', zIndex: 20 }}
+        style={{ flex: 1, border: 'none', background: 'transparent', color: 'transparent', caretColor: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '15px', fontWeight: 400, letterSpacing: 'normal', outline: 'none', width: '100%', position: 'relative', zIndex: 20 }}
       />
 
       {/* Kinetic Spark Canvas */}

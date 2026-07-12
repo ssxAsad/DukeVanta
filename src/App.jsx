@@ -7,7 +7,9 @@ import ChatView from './components/ChatView';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
 import PersonalityView from './components/PersonalityView';
-import ToolsView from './components/ToolsView'; // Imported the new ToolsView
+import ToolsView from './components/ToolsView'; 
+import ApiServerView from './components/ApiServerView';
+import MarketplaceView from './components/MarketplaceView';
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -123,7 +125,7 @@ export default function App() {
 
   const selectPersonality = (persona) => {
     setActivePersonality(persona);
-    handleNavigation('new'); 
+    // Removed handleNavigation('new') so it doesn't reset the chat
   };
 
   const deletePersonality = async (id) => {
@@ -141,23 +143,22 @@ export default function App() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative', background: '#050505' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', position: 'relative', background: 'var(--background-base)' }}>
       <Sidebar 
-        isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} 
+        isSidebarOpen={true} setIsSidebarOpen={setIsSidebarOpen} 
         activeView={activeView} chatTopic={chatTopic} handleNavigation={handleNavigation} 
       />
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', marginLeft: '260px' }}>
         <Header 
           setIsSidebarOpen={setIsSidebarOpen} 
           activeView={activeView} 
           isLocalMode={isLocalMode} 
           isModelLoaded={isModelLoaded}
-          isApiServerActive={isApiServerActive}
-          setIsApiServerActive={setIsApiServerActive}
+          gpuData={gpuData}
         />
 
-        <div style={{ flex: 1, padding: '90px 40px 40px 40px', overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, padding: '90px 40px 10px 40px', overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <AnimatePresence mode="wait">
             {activeView === 'settings' && (
               <SettingsView 
@@ -169,13 +170,27 @@ export default function App() {
                 gpuData={gpuData} 
               />
             )}
+            {activeView === 'apiserver' && (
+              <ApiServerView 
+                isApiServerActive={isApiServerActive}
+                setIsApiServerActive={setIsApiServerActive}
+              />
+            )}
+            {activeView === 'marketplace' && <MarketplaceView />}
             {activeView === 'history' && <HistoryView chatHistory={chatHistory} loadSession={loadSession} deleteHistory={deleteHistory} />}
             {activeView === 'personalities' && <PersonalityView personalities={personalities} setPersonalities={setPersonalities} activePersonality={activePersonality} selectPersonality={selectPersonality} deletePersonality={deletePersonality} />}
             {activeView === 'chat' && <ChatView messages={messages} setMessages={setMessages} selectedModel={selectedModel} selectedVisionModel={selectedVisionModel} />}
-            
-            {/* INJECTED TOOLS VIEW ROUTE */}
             {activeView === 'discord-bot' && <ToolsView selectedModel={selectedModel} />}
           </AnimatePresence>
+        </div>
+
+        {/* Global Footer Status Bar */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, borderTop: '1px solid transparent', zIndex: 10 }}>
+          <span>DukeVanta v1.0.0</span>
+          <span style={{ margin: '0 8px' }}>•</span>
+          <span style={{ color: 'var(--success)' }}>Local Mode</span>
+          <span style={{ margin: '0 8px' }}>•</span>
+          <span>No data leaves your device</span>
         </div>
       </main>
     </div>

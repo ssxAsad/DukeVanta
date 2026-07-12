@@ -11,7 +11,7 @@ export class DatabaseService {
         id: 'p_default', 
         name: 'DukeVanta Core', 
         description: 'The standard, hyper-intelligent, and analytical default persona.', 
-        systemPrompt: 'You are DukeVanta, a highly capable, brilliant, and professional AI assistant. You provide exceptionally accurate and well-formatted answers.' 
+        systemPrompt: 'You are DukeVanta, a highly capable, brilliant, and professional AI assistant. You provide exceptionally accurate, helpful, and well-formatted answers. Always reply in a direct, natural conversational tone, exactly like ChatGPT or Gemini. Never include roleplay text, stage directions, parenthetical actions, or descriptions of physical actions (such as *smiles*, *sighs*, or *nods*).' 
       }
     ];
   }
@@ -51,7 +51,16 @@ export class DatabaseService {
   async getPersonalities() {
     try {
       const data = await fs.readFile(this.personalitiesPath, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      // Automatically update the default personality system prompt if it exists and is outdated
+      const defaultIndex = parsed.findIndex(p => p.id === 'p_default');
+      const currentDefaultPrompt = this.defaultPersonalities[0].systemPrompt;
+      if (defaultIndex >= 0 && parsed[defaultIndex].systemPrompt !== currentDefaultPrompt) {
+        parsed[defaultIndex].systemPrompt = currentDefaultPrompt;
+        parsed[defaultIndex].description = this.defaultPersonalities[0].description;
+        await fs.writeFile(this.personalitiesPath, JSON.stringify(parsed, null, 2));
+      }
+      return parsed;
     } catch (err) {
       await fs.writeFile(this.personalitiesPath, JSON.stringify(this.defaultPersonalities, null, 2));
       return this.defaultPersonalities;

@@ -5,7 +5,7 @@ class InferenceEngine {
     this.model = null;
     this.context = null;
     this.session = null;
-    this.systemPrompt = "You are a helpful AI assistant.";
+    this.systemPrompt = "You are a helpful AI assistant. Always reply in a direct, natural conversational tone, exactly like ChatGPT or Gemini. Never include roleplay text, stage directions, parenthetical actions, or descriptions of physical actions (such as *smiles*, *sighs*, or *nods*).";
   }
 
   async initialize() {

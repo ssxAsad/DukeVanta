@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export default function ToolsView({ selectedModel }) {
-  const [activeTool, setActiveTool] = useState(null);
-  
   // Multi-Bot State
   const [savedBots, setSavedBots] = useState([]);
   const [activeBotIds, setActiveBotIds] = useState({});
@@ -12,13 +10,11 @@ export default function ToolsView({ selectedModel }) {
   const [sysError, setSysError] = useState(null);
 
   useEffect(() => {
-    if (activeTool === 'discord-bot') {
-      fetchBots();
-      checkStatuses();
-      const interval = setInterval(checkStatuses, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [activeTool]);
+    fetchBots();
+    checkStatuses();
+    const interval = setInterval(checkStatuses, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchBots = async () => {
     const bots = await window.dukeAPI.getDiscordBots();
@@ -92,24 +88,9 @@ export default function ToolsView({ selectedModel }) {
   return (
     <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} style={{ flex: 1, background: 'rgba(15, 15, 20, 0.8)', backdropFilter: 'blur(32px)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', padding: '40px', color: 'white', overflowY: 'auto', display: 'flex', gap: '40px' }}>
       
-      {/* Left Column */}
-      <div style={{ width: '240px', borderRight: '1px solid rgba(255,255,255,0.05)', paddingRight: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h2 style={{ fontWeight: 600, color: '#ececec', margin: '0 0 24px 0', fontSize: '20px' }}>Tools</h2>
-        <button onClick={() => setActiveTool('discord-bot')} style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', background: activeTool === 'discord-bot' ? 'rgba(255,255,255,0.05)' : 'transparent', border: '1px solid transparent', color: activeTool === 'discord-bot' ? '#fff' : '#888', cursor: 'pointer', textAlign: 'left', fontWeight: 500, transition: 'all 0.2s' }}>
-          Discord Bot Builder
-        </button>
-      </div>
-
-      {/* Right Column */}
+      {/* Main Content (Direct Discord Bot Builder) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        
-        {activeTool === null && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#555' }}>
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>Select a tool to get started</span>
-          </motion.div>
-        )}
-
-        {activeTool === 'discord-bot' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '700px', margin: '0 auto', width: '100%' }}>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '700px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -186,7 +167,7 @@ export default function ToolsView({ selectedModel }) {
             )}
 
           </motion.div>
-        )}
+        </motion.div>
       </div>
     </motion.div>
   );

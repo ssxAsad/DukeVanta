@@ -19,6 +19,8 @@ export default function SettingsView({
   const [bootPercent, setBootPercent] = useState(0);
   const [localModels, setLocalModels] = useState([]);
   const [confirmEject, setConfirmEject] = useState(false);
+  const [confirmTerminate, setConfirmTerminate] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ show: false, title: '', message: '' });
   const [downloadTracker, setDownloadTracker] = useState({ 
     active: false, file: '', percent: 0, speed: 0, downloadedMB: 0, totalMB: 0 
   });
@@ -54,12 +56,21 @@ export default function SettingsView({
       try {
         const dlResponse = await window.dukeAPI.downloadModel({ url: fileDef.url, fileName: fileDef.filename });
         setDownloadTracker({ active: false, file: '', percent: 0, speed: 0, downloadedMB: 0, totalMB: 0 });
-        if (!dlResponse.success) throw new Error("Download interrupted");
+        if (!dlResponse.success) {
+          if (dlResponse.error === 'Download canceled by user.' || dlResponse.error === 'Download interrupted') {
+            return;
+          }
+          throw new Error(dlResponse.error || "Download interrupted");
+        }
         
         await refreshLocalCache();
         handleLoadLocal({ filename: fileDef.filename, path: dlResponse.path }, isVision);
       } catch (err) {
-        alert("Download Failed: " + err.message);
+        setAlertInfo({
+          show: true,
+          title: "Download Failed",
+          message: err.message
+        });
       }
     } else {
       const cachedModel = localModels.find(m => m.filename === fileDef.filename);
@@ -86,7 +97,11 @@ export default function SettingsView({
         setSelectedModel(targetObj);
       }
     } else {
-      alert("Model Initialization Failed: " + loadResponse.error);
+      setAlertInfo({
+        show: true,
+        title: "Model Initialization Failed",
+        message: loadResponse.error
+      });
     }
     setIsBooting(false);
   };
@@ -99,11 +114,16 @@ export default function SettingsView({
     setConfirmEject(false);
   };
 
-  const handleCancelDownload = async () => {
+  const handleCancelDownload = () => {
+    setConfirmTerminate(true);
+  };
+
+  const handleConfirmCancelDownload = async () => {
     if (downloadTracker.file) {
       await window.dukeAPI.cancelDownload(downloadTracker.file);
       setDownloadTracker({ active: false, file: '', percent: 0, speed: 0, downloadedMB: 0, totalMB: 0 });
     }
+    setConfirmTerminate(false);
   };
 
   const handleBrowseCustom = async (isVision = false) => {
@@ -133,16 +153,44 @@ export default function SettingsView({
         )}
       </AnimatePresence>
 
+      {/* --- TERMINATE DOWNLOAD MODAL --- */}
+      <AnimatePresence>
+        {confirmTerminate && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '24px' }}>
+            <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }} style={{ background: 'rgba(20, 20, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px', boxShadow: '0 24px 48px rgba(0,0,0,0.8)', maxWidth: '400px', textAlign: 'center' }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', color: '#ececec', fontSize: '20px', fontWeight: 600 }}>Terminate Download?</h3>
+                <p style={{ margin: 0, color: '#888', fontSize: '14px', lineHeight: '1.5' }}>Are you sure you want to stop downloading this model? All progress will be lost and the temporary file will be deleted.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <motion.button onClick={() => setConfirmTerminate(false)} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1, padding: '12px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: '#ececec', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontWeight: 500 }}>Cancel</motion.button>
+                <motion.button onClick={handleConfirmCancelDownload} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1, padding: '12px', borderRadius: '10px', background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}>Yes, Terminate</motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- ALERT MODAL --- */}
+      <AnimatePresence>
+        {alertInfo.show && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '24px' }}>
+            <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }} style={{ background: 'rgba(20, 20, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px', boxShadow: '0 24px 48px rgba(0,0,0,0.8)', maxWidth: '400px', textAlign: 'center' }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', color: '#ef4444', fontSize: '20px', fontWeight: 600 }}>{alertInfo.title}</h3>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{alertInfo.message}</p>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <motion.button onClick={() => setAlertInfo({ show: false, title: '', message: '' })} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#14b8a6', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(20, 184, 166, 0.3)' }}>Acknowledge</motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <h2 style={{ fontWeight: 600, color: '#ececec', margin: 0 }}>System Settings</h2>
-        {gpuData && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '12px', color: '#888' }}>Hardware detected:</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#14b8a6' }}>{gpuData.gpuName} ({gpuData.vramGB}GB VRAM)</span>
-          </div>
-        )}
       </div>
-
       {/* --- DEDICATED ACTIVE DOWNLOAD TRACKER --- */}
       <ActiveDownloadTracker 
         downloadTracker={downloadTracker} 

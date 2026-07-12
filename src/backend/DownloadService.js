@@ -97,7 +97,7 @@ export class DownloadService {
       }
       this.activeDownloads.delete(fileName);
       
-      if (error.name === 'AbortError') {
+      if (error.name === 'AbortError' || error.message?.includes('abort') || error.message?.includes('aborted')) {
         return { success: false, error: 'Download canceled by user.' };
       }
       throw error;

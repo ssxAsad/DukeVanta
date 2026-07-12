@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('dukeAPI', {
   saveChat: (chatData) => ipcRenderer.invoke('save-chat', chatData),
   deleteChat: (id) => ipcRenderer.invoke('delete-chat', id),
   getPersonalities: () => ipcRenderer.invoke('get-personalities'),
+  getVramState: () => ipcRenderer.invoke('get-vram-state'),
   importPersonality: () => ipcRenderer.invoke('import-personality'),
   deletePersonality: (id) => ipcRenderer.invoke('delete-personality', id),
   toggleApiServer: (enable) => ipcRenderer.invoke('toggle-api-server', enable),

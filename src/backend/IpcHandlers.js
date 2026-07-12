@@ -68,6 +68,18 @@ export function registerIpcHandlers(db, apiServer, hardwareScanner, downloader) 
     return await downloader.getModelList();
   });
 
+  ipcMain.handle('get-vram-state', async () => {
+    try {
+      if (engine.llama) {
+        const state = await engine.llama.getVramState();
+        return state;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  });
+
   // --- HUGGING FACE API BRIDGES ---
   ipcMain.handle('search-hf-models', async (event, query) => {
     return await HuggingFaceService.searchModels(query);

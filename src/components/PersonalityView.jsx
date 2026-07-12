@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PersonalityView({ personalities, setPersonalities, activePersonality, selectPersonality, deletePersonality }) {
   const [isImporting, setIsImporting] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ show: false, title: '', message: '' });
   
   // Track which personality card is pending deletion
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -14,7 +15,11 @@ export default function PersonalityView({ personalities, setPersonalities, activ
     if (result && !result.error) {
       setPersonalities(result);
     } else if (result && result.error) {
-      alert(`Import Failed: ${result.error}\n\nEnsure your JSON file contains "name", "description", and "systemPrompt".`);
+      setAlertInfo({
+        show: true,
+        title: "Import Failed",
+        message: `${result.error}\n\nEnsure your JSON file contains "name", "description", and "systemPrompt".`
+      });
     }
     setIsImporting(false);
   };
@@ -60,6 +65,36 @@ export default function PersonalityView({ personalities, setPersonalities, activ
                   style={{ flex: 1, padding: '12px', borderRadius: '10px', background: '#ef4444', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}
                 >
                   Yes, Delete
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- ALERT MODAL --- */}
+      <AnimatePresence>
+        {alertInfo.show && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '24px' }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
+              style={{ background: 'rgba(20, 20, 25, 0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px', boxShadow: '0 24px 48px rgba(0,0,0,0.8)', maxWidth: '400px', textAlign: 'center' }}
+            >
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', color: '#ef4444', fontSize: '20px', fontWeight: 600 }}>{alertInfo.title}</h3>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{alertInfo.message}</p>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                  onClick={() => setAlertInfo({ show: false, title: '', message: '' })} 
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#14b8a6', color: '#000', border: 'none', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(20, 184, 166, 0.3)' }}
+                >
+                  Acknowledge
                 </motion.button>
               </div>
             </motion.div>
